@@ -16,9 +16,9 @@ TARGET = eventrouter
 GOTARGET = github.com/kuoss/$(TARGET)
 BUILDMNT = /src/
 REGISTRY ?= ghcr.io/kuoss
-VERSION ?= v0.3.0
+VERSION ?= v0.3.1
 IMAGE = $(REGISTRY)/$(BIN)
-BUILD_IMAGE ?= golang:1.12.9
+BUILD_IMAGE ?= golang:1.19
 DOCKER ?= docker
 DIR := ${CURDIR}
 
