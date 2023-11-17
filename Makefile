@@ -66,5 +66,8 @@ govulncheck:
 misspell:
 	hack/misspell.sh
 
+gocyclo:
+	hack/gocyclo.sh
+
 build:
 	CGO_ENABLED=0 go build -ldflags=-w

@@ -31,6 +31,10 @@ type EventSinkInterface interface {
 
 // ManufactureSink will manufacture a sink according to viper configs
 // TODO: Determine if it should return an array of sinks
+//
+// TODO: remove gocyclo:ignore
+//
+//gocyclo:ignore
 func ManufactureSink() (e EventSinkInterface) {
 	s := viper.GetString("sink")
 	glog.Infof("Sink is [%v]", s)
