@@ -59,7 +59,7 @@ clean:
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
 
-checks: gofmt govet goimports misspell gocyclo staticcheck golangci-lint
+checks: gofmt govet goimports misspell gocyclo staticcheck golangci-lint gotest
 
 gofmt:
 	go fmt ./...
@@ -85,6 +85,9 @@ staticcheck:
 golangci-lint:
 	which golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	golangci-lint run --timeout 5m
+
+gotest:
+	go test ./...
 
 build:
 	CGO_ENABLED=0 go build -ldflags=-w
