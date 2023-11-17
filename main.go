@@ -18,6 +18,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -58,7 +59,7 @@ func sigHandler() <-chan struct{} {
 }
 
 // loadConfig will parse input + config file and return a clientset
-func loadConfig() kubernetes.Interface {
+func loadConfig() (kubernetes.Interface, error) {
 	var config *rest.Config
 	var err error
 
@@ -74,11 +75,16 @@ func loadConfig() kubernetes.Interface {
 	viper.SetDefault("sink", "glog")
 	viper.SetDefault("resync-interval", time.Minute*30)
 	viper.SetDefault("enable-prometheus", true)
-	if err = viper.ReadInConfig(); err != nil {
-		panic(err.Error())
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		return nil, fmt.Errorf("ReadInConfig err: %w", err)
 	}
 
-	viper.BindEnv("kubeconfig") // Allows the KUBECONFIG env var to override where the kubeconfig is
+	err = viper.BindEnv("kubeconfig") // Allows the KUBECONFIG env var to override where the kubeconfig is
+	if err != nil {
+		return nil, fmt.Errorf("BindEnv err: %w", err)
+	}
 
 	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env var
 	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
@@ -87,26 +93,33 @@ func loadConfig() kubernetes.Interface {
 	kubeconfig := viper.GetString("kubeconfig")
 	if len(kubeconfig) > 0 {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			return nil, fmt.Errorf("BuildConfigFromFlags err: %w", err)
+		}
 	} else {
 		config, err = rest.InClusterConfig()
-	}
-	if err != nil {
-		panic(err.Error())
+		if err != nil {
+			return nil, fmt.Errorf("InClusterConfig err: %w", err)
+		}
 	}
 
 	// creates the clientset from kubeconfig
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		return nil, fmt.Errorf("NewForConfig err: %w", err)
 	}
-	return clientset
+	return clientset, nil
 }
 
 // main entry point of the program
 func main() {
 	var wg sync.WaitGroup
 
-	clientset := loadConfig()
+	clientset, err := loadConfig()
+	if err != nil {
+		glog.Errorf("loadConfig err: %v", err)
+		os.Exit(1)
+	}
 	sharedInformers := informers.NewSharedInformerFactory(clientset, viper.GetDuration("resync-interval"))
 	eventsInformer := sharedInformers.Core().V1().Events()
 

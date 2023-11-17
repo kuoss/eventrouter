@@ -105,11 +105,14 @@ func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformer
 		kubeClient: kubeClient,
 		eSink:      sinks.ManufactureSink(),
 	}
-	eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    er.addEvent,
 		UpdateFunc: er.updateEvent,
 		DeleteFunc: er.deleteEvent,
 	})
+	if err != nil {
+		glog.Errorf("AddEventHandler err: %v", err)
+	}
 	er.eLister = eventsInformer.Lister()
 	er.eListerSynched = eventsInformer.Informer().HasSynced
 	return er
