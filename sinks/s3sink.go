@@ -24,7 +24,6 @@ The sinker uploads it to s3 if any of the below criteria gets fullfilled
 
 S3 is cheap and the sink can be used to store events data. S3 can later then be used with
 Redshift and other visualization tools to use this data.
-
 */
 type S3Sink struct {
 	// uploader is the uploader client from aws which makes the API call to aws for upload

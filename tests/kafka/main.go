@@ -21,8 +21,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kuoss/eventrouter/sinks"
 	"github.com/kelseyhightower/envconfig"
+	"github.com/kuoss/eventrouter/sinks"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"

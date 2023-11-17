@@ -33,7 +33,6 @@ type StdoutSink struct {
 	namespace string
 }
 
-
 // NewStdoutSink will create a new StdoutSink with default options, returned as
 // an EventSinkInterface
 func NewStdoutSink(namespace string) EventSinkInterface {
@@ -44,7 +43,7 @@ func NewStdoutSink(namespace string) EventSinkInterface {
 // UpdateEvents implements the EventSinkInterface
 func (gs *StdoutSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	eData := NewEventData(eNew, eOld)
-	
+
 	if len(gs.namespace) > 0 {
 		namespacedData := map[string]interface{}{}
 		namespacedData[gs.namespace] = eData
