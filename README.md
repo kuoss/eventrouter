@@ -25,11 +25,11 @@ _sink_
 ## Running Eventrouter 
 Standup: 
 ```
-$ kubectl create -f https://raw.githubusercontent.com/heptiolabs/eventrouter/master/yaml/eventrouter.yaml
+$ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/yaml/eventrouter.yaml
 ```
 Teardown: 
 ```
-$ kubectl delete -f https://raw.githubusercontent.com/heptiolabs/eventrouter/master/yaml/eventrouter.yaml
+$ kubectl delete -f https://raw.githubusercontent.com/kuoss/eventrouter/main/yaml/eventrouter.yaml
 ```
 
 ### Inspecting the output 

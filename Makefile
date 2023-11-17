@@ -58,3 +58,10 @@ clean:
 	rm -f $(TARGET)
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
+
+govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...
+
+build:
+	CGO_ENABLED=0 go build -ldflags=-w
