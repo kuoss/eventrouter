@@ -6,19 +6,18 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/api/core/v1"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/eapache/channels"
 	"github.com/golang/glog"
+	v1 "k8s.io/api/core/v1"
 )
 
 /*
 S3Sink is the sink that uploads the kubernetes events as json object stored in a file.
-The sinker uploads it to s3 if any of the below criteria gets fullfilled
+The sinker uploads it to s3 if any of the below criteria gets fulfilled
 1) Time(uploadInterval): If the specfied time has passed since the last upload it uploads
 2) [TODO] Data size: If the total data getting uploaded becomes greater than N bytes
 

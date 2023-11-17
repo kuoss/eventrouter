@@ -110,7 +110,7 @@ func ManufactureSink() (e EventSinkInterface) {
 		viper.SetDefault("s3SinkOutputFormat", "rfc5424")
 		outputFormat := viper.GetString("s3SinkOutputFormat")
 		if outputFormat != "rfc5424" && outputFormat != "flatjson" {
-			panic("s3 sink specified, but incorrect s3SinkOutputFormat specifed. Supported formats are: rfc5424 (default) and flatjson")
+			panic("s3 sink specified, but incorrect s3SinkOutputFormat specified. Supported formats are: rfc5424 (default) and flatjson")
 		}
 
 		// By default we buffer up to 1500 events, and drop messages if more than

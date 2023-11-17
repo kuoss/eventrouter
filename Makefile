@@ -63,5 +63,8 @@ govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
+misspell:
+	hack/misspell.sh
+
 build:
 	CGO_ENABLED=0 go build -ldflags=-w
