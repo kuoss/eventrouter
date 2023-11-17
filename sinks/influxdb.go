@@ -26,8 +26,7 @@ import (
 
 	"github.com/golang/glog"
 	influxdb "github.com/influxdata/influxdb/client"
-
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -284,7 +283,7 @@ func (sink *InfluxDBSink) createRetentionPolicy() error {
 
 	if resp, err := sink.client.Query(q); err != nil {
 		if !(resp != nil && resp.Err != nil && strings.Contains(resp.Err.Error(), "already exists")) {
-			return fmt.Errorf("Retention policy creation failed: %v", err)
+			return fmt.Errorf("retention policy creation failed: %v", err)
 		}
 	}
 

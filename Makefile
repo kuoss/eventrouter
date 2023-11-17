@@ -59,15 +59,22 @@ clean:
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
 
-govulncheck:
-	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
-	govulncheck ./...
+checks: goimports misspell gocyclo
+
+goimports:
+	which goimports || go install golang.org/x/tools/cmd/goimports@latest
+	goimports -local -v -w .
 
 misspell:
 	hack/misspell.sh
 
 gocyclo:
-	hack/gocyclo.sh
+	which gocyclo || go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+	gocyclo -over 15 .
 
 build:
 	CGO_ENABLED=0 go build -ldflags=-w
+
+govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...

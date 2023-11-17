@@ -150,14 +150,14 @@ func (s *S3Sink) drainEvents(events []EventData) {
 				return
 			}
 		default:
-			err := errors.New("Invalid Sink Output Format specified")
+			err := errors.New("invalid Sink Output Format specified")
 			panic(err.Error())
 		}
 		s.bodyBuf.Write([]byte{'\n'})
 		written++
 	}
 
-	if s.canUpload() == false {
+	if !s.canUpload() {
 		return
 	}
 
@@ -167,10 +167,7 @@ func (s *S3Sink) drainEvents(events []EventData) {
 // canUpload verifies the conditions suitable for a new file upload and upload the data
 func (s *S3Sink) canUpload() bool {
 	now := time.Now().UnixNano()
-	if (s.lastUploadTimestamp + s.uploadInterval.Nanoseconds()) < now {
-		return true
-	}
-	return false
+	return (s.lastUploadTimestamp + s.uploadInterval.Nanoseconds()) < now
 }
 
 // getNewKey gets the key name based on time

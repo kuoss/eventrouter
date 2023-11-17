@@ -223,7 +223,7 @@ func ManufactureSink() (e EventSinkInterface) {
 		return eh
 	// case "logfile"
 	default:
-		err := errors.New("Invalid Sink Specified")
+		err := errors.New("invalid Sink Specified")
 		panic(err.Error())
 	}
 	return e
