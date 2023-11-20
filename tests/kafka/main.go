@@ -21,9 +21,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/heptiolabs/eventrouter/sinks"
 	"github.com/kelseyhightower/envconfig"
-	"k8s.io/api/core/v1"
+	"github.com/kuoss/eventrouter/sinks"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ref "k8s.io/client-go/tools/reference"

@@ -58,3 +58,40 @@ clean:
 	rm -f $(TARGET)
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
+
+checks: gofmt govet goimports misspell gocyclo staticcheck golangci-lint gotest
+
+gofmt:
+	go fmt ./...
+
+govet:
+	go vet ./...
+
+goimports:
+	which goimports || go install golang.org/x/tools/cmd/goimports@latest
+	goimports -local -v -w .
+
+misspell:
+	hack/misspell.sh
+
+gocyclo:
+	which gocyclo || go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+	gocyclo -over 15 .
+
+staticcheck:
+	which staticcheck || go install honnef.co/go/tools/cmd/staticcheck@latest
+	staticcheck ./...
+
+golangci-lint:
+	which golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+	golangci-lint run --timeout 5m
+
+gotest:
+	go test ./...
+
+build:
+	CGO_ENABLED=0 go build -ldflags=-w
+
+govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
+	govulncheck ./...

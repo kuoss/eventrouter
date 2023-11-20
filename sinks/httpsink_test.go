@@ -27,11 +27,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
 	ref "k8s.io/client-go/tools/reference"
 
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 func TestUpdateEvents(t *testing.T) {
@@ -46,7 +47,9 @@ func TestUpdateEvents(t *testing.T) {
 	// `got` buffer and records the request.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seenRequests = append(seenRequests, r)
-		io.Copy(got, r.Body)
+		written, err := io.Copy(got, r.Body)
+		require.NoError(t, err)
+		require.NotEmpty(t, written)
 		w.WriteHeader(mockStatus)
 	}))
 	defer srv.Close()

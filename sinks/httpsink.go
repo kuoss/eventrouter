@@ -23,8 +23,7 @@ import (
 	"github.com/eapache/channels"
 	"github.com/golang/glog"
 	"github.com/sethgrid/pester"
-
-	"k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 )
 
 /*

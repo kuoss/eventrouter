@@ -15,8 +15,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/heptiolabs/eventrouter/sinks"
 	"time"
+
+	"github.com/kuoss/eventrouter/sinks"
 
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

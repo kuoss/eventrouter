@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/golang/glog"
-	"github.com/heptiolabs/eventrouter/sinks"
+	"github.com/kuoss/eventrouter/sinks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
 
@@ -34,7 +34,7 @@ import (
 
 var (
 	kubernetesWarningEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "heptio_eventrouter_warnings_total",
+		Name: "eventrouter_warnings_total",
 		Help: "Total number of warning events in the kubernetes cluster",
 	}, []string{
 		"involved_object_kind",
@@ -44,7 +44,7 @@ var (
 		"source",
 	})
 	kubernetesNormalEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "heptio_eventrouter_normal_total",
+		Name: "eventrouter_normal_total",
 		Help: "Total number of normal events in the kubernetes cluster",
 	}, []string{
 		"involved_object_kind",
@@ -54,7 +54,7 @@ var (
 		"source",
 	})
 	kubernetesInfoEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "heptio_eventrouter_info_total",
+		Name: "eventrouter_info_total",
 		Help: "Total number of info events in the kubernetes cluster",
 	}, []string{
 		"involved_object_kind",
@@ -64,7 +64,7 @@ var (
 		"source",
 	})
 	kubernetesUnknownEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "heptio_eventrouter_unknown_total",
+		Name: "eventrouter_unknown_total",
 		Help: "Total number of events of unknown type in the kubernetes cluster",
 	}, []string{
 		"involved_object_kind",
@@ -105,11 +105,14 @@ func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformer
 		kubeClient: kubeClient,
 		eSink:      sinks.ManufactureSink(),
 	}
-	eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	_, err := eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    er.addEvent,
 		UpdateFunc: er.updateEvent,
 		DeleteFunc: er.deleteEvent,
 	})
+	if err != nil {
+		glog.Errorf("AddEventHandler err: %v", err)
+	}
 	er.eLister = eventsInformer.Lister()
 	er.eListerSynched = eventsInformer.Informer().HasSynced
 	return er

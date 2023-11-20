@@ -38,7 +38,8 @@ type EventHubSink struct {
 // ```
 //
 // connString expects the Azure Event Hub connection string format:
-//		`Endpoint=sb://YOUR_ENDPOINT.servicebus.windows.net/;SharedAccessKeyName=YOUR_ACCESS_KEY_NAME;SharedAccessKey=YOUR_ACCESS_KEY;EntityPath=YOUR_EVENT_HUB_NAME`
+//
+//	`Endpoint=sb://YOUR_ENDPOINT.servicebus.windows.net/;SharedAccessKeyName=YOUR_ACCESS_KEY_NAME;SharedAccessKey=YOUR_ACCESS_KEY;EntityPath=YOUR_EVENT_HUB_NAME`
 func NewEventHubSink(connString string, overflow bool, bufferSize int) (*EventHubSink, error) {
 	hub, err := eventhub.NewHubFromConnectionString(connString)
 	if err != nil {

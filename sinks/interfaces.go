@@ -31,6 +31,10 @@ type EventSinkInterface interface {
 
 // ManufactureSink will manufacture a sink according to viper configs
 // TODO: Determine if it should return an array of sinks
+//
+// TODO: remove gocyclo:ignore
+//
+//gocyclo:ignore
 func ManufactureSink() (e EventSinkInterface) {
 	s := viper.GetString("sink")
 	glog.Infof("Sink is [%v]", s)
@@ -110,7 +114,7 @@ func ManufactureSink() (e EventSinkInterface) {
 		viper.SetDefault("s3SinkOutputFormat", "rfc5424")
 		outputFormat := viper.GetString("s3SinkOutputFormat")
 		if outputFormat != "rfc5424" && outputFormat != "flatjson" {
-			panic("s3 sink specified, but incorrect s3SinkOutputFormat specifed. Supported formats are: rfc5424 (default) and flatjson")
+			panic("s3 sink specified, but incorrect s3SinkOutputFormat specified. Supported formats are: rfc5424 (default) and flatjson")
 		}
 
 		// By default we buffer up to 1500 events, and drop messages if more than
@@ -219,7 +223,7 @@ func ManufactureSink() (e EventSinkInterface) {
 		return eh
 	// case "logfile"
 	default:
-		err := errors.New("Invalid Sink Specified")
+		err := errors.New("invalid Sink Specified")
 		panic(err.Error())
 	}
 	return e

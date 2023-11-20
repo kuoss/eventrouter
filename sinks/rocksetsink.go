@@ -53,18 +53,22 @@ func NewRocksetSink(rocksetAPIKey string, rocksetCollectionName string, rocksetW
 // UpdateEvents implements the EventSinkInterface
 func (rs *RocksetSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	eData := NewEventData(eNew, eOld)
-
-	if eJSONBytes, err := json.Marshal(eData); err == nil {
-		var m map[string]interface{}
-		json.Unmarshal(eJSONBytes, &m)
-		docs := []interface{}{
-			m,
-		}
-		dinfo := models.AddDocumentsRequest{
-			Data: docs,
-		}
-		rs.client.Documents.Add(rs.rocksetWorkspaceName, rs.rocksetCollectionName, dinfo)
-	} else {
-		fmt.Fprintf(os.Stderr, "Failed to json serialize event: %v", err)
+	eJSONBytes, err := json.Marshal(eData)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "json.Marshal err: %v", err)
+		return
+	}
+	var m map[string]interface{}
+	err = json.Unmarshal(eJSONBytes, &m)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "json.Unmarshal err: %v", err)
+		return
+	}
+	docs := []interface{}{m}
+	dinfo := models.AddDocumentsRequest{Data: docs}
+	_, _, err = rs.client.Documents.Add(rs.rocksetWorkspaceName, rs.rocksetCollectionName, dinfo)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Documents.Add err: %v", err)
+		return
 	}
 }
