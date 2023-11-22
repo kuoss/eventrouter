@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	eventhub "github.com/Azure/azure-event-hubs-go/v2"
+	eventhub "github.com/Azure/azure-event-hubs-go/v3"
 	"github.com/eapache/channels"
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"

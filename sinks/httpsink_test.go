@@ -35,7 +35,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-func TestUpdateEvents(t *testing.T) {
+func TestUpdateEvents_httpsink(t *testing.T) {
 	stopCh := make(chan bool, 1)
 	doneCh := make(chan bool, 1)
 
