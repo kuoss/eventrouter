@@ -12,6 +12,7 @@ require (
 	github.com/influxdata/influxdb v1.7.7
 	github.com/json-iterator/go v1.1.12
 	github.com/kelseyhightower/envconfig v1.4.0
+	github.com/kuoss/common v0.1.5
 	github.com/nytlabs/gojsonexplode v0.0.0-20200518202627-78c8f38f2dac
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rockset/rockset-go-client v0.6.0
