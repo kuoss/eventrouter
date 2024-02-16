@@ -12,7 +12,6 @@ require (
 	github.com/influxdata/influxdb v1.7.7
 	github.com/json-iterator/go v1.1.12
 	github.com/kelseyhightower/envconfig v1.4.0
-	github.com/kuoss/common v0.1.5
 	github.com/nytlabs/gojsonexplode v0.0.0-20200518202627-78c8f38f2dac
 	github.com/prometheus/client_golang v1.17.0
 	github.com/rockset/rockset-go-client v0.6.0
@@ -81,6 +80,7 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20181016184325-3113b8401b8a // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.10.0 // indirect
 	github.com/spf13/cast v1.5.1 // indirect
