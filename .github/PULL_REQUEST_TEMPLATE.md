@@ -5,7 +5,7 @@
 
 #### Which issue(s) this PR fixes:
 
-- #0
+- fixes #0
 
 
 #### Special notes for your reviewer:
