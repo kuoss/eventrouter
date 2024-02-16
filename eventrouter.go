@@ -201,7 +201,11 @@ func prometheusEvent(event *v1.Event) {
 
 // deleteEvent should only occur when the system garbage collects events via TTL expiration
 func (er *EventRouter) deleteEvent(obj interface{}) {
-	e := obj.(*v1.Event)
+	e, ok := obj.(*v1.Event)
+	if !ok {
+		glog.Errorf("Cannot convert to event: %#v", obj)
+		return
+	}
 	// NOTE: This should *only* happen on TTL expiration there
 	// is no reason to push this to a sink
 	glog.V(5).Infof("Event Deleted from the system:\n%v", e)
