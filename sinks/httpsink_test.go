@@ -67,9 +67,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		Spec: v1.PodSpec{},
 	}
 	podRef, err := ref.GetReference(scheme.Scheme, testPod)
-	if err != nil {
-		t.Fatalf(err.Error())
-	}
+	require.NoError(t, err)
 
 	evt := makeFakeEvent(podRef, v1.EventTypeWarning, "CreateInCluster", "Fake pod creation event")
 
