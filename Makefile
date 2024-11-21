@@ -46,7 +46,7 @@ push:
 		$(DOCKER) push $(REGISTRY)/$(TARGET):$(VERSION); \
 	fi
 
-test:
+_test:
 	$(DOCKER_BUILD) '$(TEST)'
 
 vet:
@@ -59,39 +59,18 @@ clean:
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
 	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
 
-checks: gofmt govet goimports misspell gocyclo staticcheck golangci-lint gotest
+checks: test build lint
 
-gofmt:
-	go fmt ./...
+test:
+	go test -v ./...
 
-govet:
-	go vet ./...
+build:
+	CGO_ENABLED=0 go build -ldflags=-w -o bin/eventrouter
 
-goimports:
-	which goimports || go install golang.org/x/tools/cmd/goimports@latest
-	goimports -local -v -w .
-
-misspell:
-	hack/misspell.sh
-
-gocyclo:
-	which gocyclo || go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
-	gocyclo -over 15 .
-
-staticcheck:
-	which staticcheck || go install honnef.co/go/tools/cmd/staticcheck@latest
-	staticcheck ./...
-
-golangci-lint:
+lint:
 	which golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	golangci-lint run --timeout 5m
 
-gotest:
-	go test ./...
-
-build:
-	CGO_ENABLED=0 go build -ldflags=-w
-
-govulncheck:
+vulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
