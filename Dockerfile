@@ -1,10 +1,10 @@
-FROM golang:1.20-alpine AS base
+FROM golang:1.23-alpine AS base
 WORKDIR /temp/
 COPY . ./
 RUN go mod download -x
 RUN CGO_ENABLED=0 go build -ldflags=-w -o /app/eventrouter
 
-FROM alpine:3.18
+FROM alpine:3.20
 COPY --from=base /app /app
 RUN apk update --no-cache && apk add ca-certificates
 WORKDIR /app

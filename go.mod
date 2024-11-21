@@ -1,6 +1,6 @@
 module github.com/kuoss/eventrouter
 
-go 1.23.1
+go 1.23
 
 require (
 	github.com/Azure/azure-event-hubs-go/v3 v3.6.1
