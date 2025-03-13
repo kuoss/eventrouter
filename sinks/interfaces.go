@@ -183,7 +183,7 @@ func ManufactureSink() (e EventSinkInterface) {
 			Concurrency:           concurrency,
 		}
 
-		influx, err := NewInfuxdbSink(cfg)
+		influx, err := NewInfluxdbSink(cfg)
 		if err != nil {
 			panic(err.Error())
 		}
@@ -202,7 +202,11 @@ func ManufactureSink() (e EventSinkInterface) {
 		if rocksetCollectionName == "" {
 			panic("Rockset sink specified but rocksetWorkspaceName not specified")
 		}
-		e = NewRocksetSink(rocksetAPIKey, rocksetCollectionName, rocksetWorkspaceName)
+		var err error
+		e, err = NewRocksetSink(rocksetAPIKey, rocksetCollectionName, rocksetWorkspaceName)
+		if err != nil {
+			panic(err.Error())
+		}
 	case "eventhub":
 		connString := viper.GetString("eventHubConnectionString")
 		if connString == "" {

@@ -19,7 +19,7 @@ package sinks
 import (
 	"encoding/json"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
 )

@@ -46,7 +46,10 @@ func main() {
 
 	evt := makeFakeEvent(podRef, v1.EventTypeWarning, "CreateInCluster", "Fake pod creation event")
 
-	sink := sinks.NewRocksetSink("key", "collection", "commons")
+	sink, err := sinks.NewRocksetSink("key", "collection", "commons")
+	if err != nil {
+		panic(err.Error())
+	}
 
 	sink.UpdateEvents(evt, nil)
 }
