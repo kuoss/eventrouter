@@ -57,7 +57,7 @@ func NewEventData(eNew *v1.Event, eOld *v1.Event) EventData {
 // WriteRFC5424 writes the current event data to the given io.Writer using
 // RFC5424 (syslog over TCP) syntax.
 func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
-	eventJSON, err := json.Marshal(e)
+	jsonBytes, err := json.Marshal(e)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal event to JSON: %v", err)
 	}
@@ -71,7 +71,7 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	procID := "-"
 	msgID := "-"
 	structuredData := "-"
-	message := string(eventJSON)
+	message := string(jsonBytes)
 
 	rfc5424Message := fmt.Sprintf("%s%s %s %s %s %s %s %s %s",
 		priority, version, timestamp, hostname, appName, procID, msgID, structuredData, message)
