@@ -70,7 +70,7 @@ func (rs *RocksetSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	docs := []interface{}{m}
 	_, err = rs.client.AddDocuments(context.Background(), rs.rocksetWorkspaceName, rs.rocksetCollectionName, docs)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "AddDocuments err: %v\n", err)
+		fmt.Fprintf(os.Stderr, "AddDocuments err: %v", err)
 		return
 	}
 }
