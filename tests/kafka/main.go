@@ -21,8 +21,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/kuoss/eventrouter/sinks"
+	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -30,18 +30,37 @@ import (
 )
 
 type KafkaEnv struct {
-	Brokers  []string `required:"true"`
-	Topic    string   `required:"true"`
-	Async    bool     `default:"true"`
-	RetryMax int      `default:"5"`
+	Brokers  []string
+	Topic    string
+	Async    bool
+	RetryMax int
+}
+
+func loadConfig() KafkaEnv {
+	viper.SetDefault("ASYNC", true)
+	viper.SetDefault("RETRYMAX", 5)
+
+	viper.AutomaticEnv() // Read in environment variables
+
+	brokers := viper.GetStringSlice("KAFKA_BROKERS")
+	topic := viper.GetString("KAFKA_TOPIC")
+	async := viper.GetBool("ASYNC")
+	retryMax := viper.GetInt("RETRYMAX")
+
+	if len(brokers) == 0 || topic == "" {
+		log.Fatal("Missing required environment variables: KAFKA_BROKERS, KAFKA_TOPIC")
+	}
+
+	return KafkaEnv{
+		Brokers:  brokers,
+		Topic:    topic,
+		Async:    async,
+		RetryMax: retryMax,
+	}
 }
 
 func main() {
-	var k KafkaEnv
-	err := envconfig.Process("kafka", &k)
-	if err != nil {
-		log.Fatal(err)
-	}
+	k := loadConfig()
 
 	kSink, err := sinks.NewKafkaSink(k.Brokers, k.Topic, k.Async, k.RetryMax, "user", "password")
 	if err != nil {

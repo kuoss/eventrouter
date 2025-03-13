@@ -3,10 +3,10 @@ package sinks
 import (
 	"context"
 	"encoding/json"
+	"log"
+	"sync"
 
 	eventhub "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/eapache/channels"
-	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -15,104 +15,69 @@ const maxMessageSize = 1046528
 // EventHubSink sends events to an Azure Event Hub.
 type EventHubSink struct {
 	hub     *eventhub.Hub
-	eventCh channels.Channel
+	eventCh chan EventData
+	wg      sync.WaitGroup
 }
 
-// NewEventHubSink constructs a new EventHubSink given a event hub connection string
+// NewEventHubSink constructs a new EventHubSink given an event hub connection string
 // and buffering options.
-//
-// ```
-// export EVENTHUB_RESOURCE_GROUP=eventrouter
-// export EVENTHUB_NAMESPACE=eventrouter-ns                                                                                                               <<<
-// export EVENTHUB_NAME=eventrouter
-// export EVENTHUB_REGION=westus2
-// export EVENTHUB_RULE_NAME=eventrouter-send
-//
-// az group create -g ${EVENTHUB_RESOURCE_GROUP} -l ${EVENTHUB_REGION}
-// az eventhubs namespace create -g ${EVENTHUB_RESOURCE_GROUP} -n ${EVENTHUB_NAMESPACE} -l ${EVENTHUB_REGION}
-// az eventhubs eventhub create -g ${EVENTHUB_RESOURCE_GROUP} --namespace-name ${EVENTHUB_NAMESPACE} -n ${EVENTHUB_NAME}
-// az eventhubs eventhub authorization-rule create -g ${EVENTHUB_RESOURCE_GROUP} --namespace-name ${EVENTHUB_NAMESPACE} --eventhub-name ${EVENTHUB_NAME} -n ${EVENTHUB_RULE_NAME} --rights Send
-// export EVENTHUB_CONNECTION_STRING=$(az eventhubs eventhub authorization-rule keys list -g ${EVENTHUB_RESOURCE_GROUP} --namespace-name ${EVENTHUB_NAMESPACE} --eventhub-name ${EVENTHUB_NAME} -n ${EVENTHUB_RULE_NAME} | jq -r '.primaryConnectionString')
-//
-// cat yaml/eventrouter-azure.yaml | envsubst | kubectl apply -f
-// ```
-//
-// connString expects the Azure Event Hub connection string format:
-//
-//	`Endpoint=sb://YOUR_ENDPOINT.servicebus.windows.net/;SharedAccessKeyName=YOUR_ACCESS_KEY_NAME;SharedAccessKey=YOUR_ACCESS_KEY;EntityPath=YOUR_EVENT_HUB_NAME`
-func NewEventHubSink(connString string, overflow bool, bufferSize int) (*EventHubSink, error) {
+func NewEventHubSink(connString string, bufferSize int) (*EventHubSink, error) {
 	hub, err := eventhub.NewHubFromConnectionString(connString)
 	if err != nil {
 		return nil, err
 	}
-	var eventCh channels.Channel
-	if overflow {
-		eventCh = channels.NewOverflowingChannel(channels.BufferCap(bufferSize))
-	} else {
-		eventCh = channels.NewNativeChannel(channels.BufferCap(bufferSize))
-	}
 
+	eventCh := make(chan EventData, bufferSize)
 	return &EventHubSink{hub: hub, eventCh: eventCh}, nil
 }
 
-// UpdateEvents implements the EventSinkInterface. It really just writes the
-// event data to the event OverflowingChannel, which should never block.
-// Messages that are buffered beyond the bufferSize specified for this EventHubSink
-// are discarded.
+// UpdateEvents implements the EventSinkInterface. It writes the event data to the channel.
+// If the channel is full, the data will be dropped to prevent blocking.
 func (h *EventHubSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
-	h.eventCh.In() <- NewEventData(eNew, eOld)
+	select {
+	case h.eventCh <- NewEventData(eNew, eOld):
+	default:
+		log.Printf("Event channel is full, discarding event: %v", eNew)
+	}
 }
 
 // Run sits in a loop, waiting for data to come in through h.eventCh,
-// and forwarding them to the event hub sink. If multiple events have happened
-// between loop iterations, it puts all of them in one request instead of
-// making a single request per event.
-func (h *EventHubSink) Run(stopCh <-chan bool) {
-loop:
+// and forwarding them to the event hub. It also handles stop signal.
+func (h *EventHubSink) Run(stopCh <-chan struct{}) {
+	h.wg.Add(1)
+	defer h.wg.Done()
+
 	for {
 		select {
-		case e := <-h.eventCh.Out():
-			var evt EventData
-			var ok bool
-			evt, ok = e.(EventData)
-			if !ok {
-				glog.Warningf("Invalid type sent through event channel: %T", e)
-				continue loop
-			}
+		case evt := <-h.eventCh:
+			events := []EventData{evt}
 
-			// Start with just this event...
-			arr := []EventData{evt}
-
-			// Consume all buffered events into an array, in case more have been written
-			// since we last forwarded them
-			numEvents := h.eventCh.Len()
-			for i := 0; i < numEvents; i++ {
-				e := <-h.eventCh.Out()
-				if evt, ok = e.(EventData); ok {
-					arr = append(arr, evt)
-				} else {
-					glog.Warningf("Invalid type sent through event channel: %T", e)
+			for {
+				select {
+				case evt := <-h.eventCh:
+					events = append(events, evt)
+				default:
+					h.drainEvents(events)
+					break
 				}
 			}
-
-			h.drainEvents(arr)
 		case <-stopCh:
-			break loop
+			return
 		}
 	}
 }
 
-// drainEvents takes an array of event data and sends it to the receiving event hub.
+// drainEvents sends event data to the Event Hub.
 func (h *EventHubSink) drainEvents(events []EventData) {
 	var messageSize int
 	var evts []*eventhub.Event
 	for _, evt := range events {
 		eJSONBytes, err := json.Marshal(evt)
 		if err != nil {
-			glog.Warningf("Failed to flatten json: %v", err)
+			log.Printf("Failed to marshal event data: %v", err)
 			return
 		}
-		glog.V(4).Infof("%s", string(eJSONBytes))
+		log.Printf("Event data: %s", eJSONBytes)
 		messageSize += len(eJSONBytes)
 		if messageSize > maxMessageSize {
 			h.sendBatch(evts)
@@ -126,6 +91,6 @@ func (h *EventHubSink) drainEvents(events []EventData) {
 
 func (h *EventHubSink) sendBatch(evts []*eventhub.Event) {
 	if err := h.hub.SendBatch(context.Background(), eventhub.NewEventBatchIterator(evts...)); err != nil {
-		glog.Errorf("Failed to send batch of %d: %v", len(evts), err)
+		log.Printf("Failed to send batch of %d events: %v", len(evts), err)
 	}
 }

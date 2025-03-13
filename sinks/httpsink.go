@@ -19,10 +19,11 @@ package sinks
 import (
 	"bytes"
 	"net/http"
+	"time"
 
 	"github.com/eapache/channels"
+	"github.com/go-resty/resty/v2"
 	"github.com/golang/glog"
-	"github.com/sethgrid/pester"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -50,7 +51,7 @@ type HTTPSink struct {
 	SinkURL string
 
 	eventCh    channels.Channel
-	httpClient *pester.Client
+	httpClient *resty.Client
 	bodyBuf    *bytes.Buffer
 }
 
@@ -66,9 +67,16 @@ func NewHTTPSink(sinkURL string, overflow bool, bufferSize int) *HTTPSink {
 		h.eventCh = channels.NewNativeChannel(channels.BufferCap(bufferSize))
 	}
 
-	h.httpClient = pester.New()
-	h.httpClient.Backoff = pester.ExponentialJitterBackoff
-	h.httpClient.MaxRetries = 10
+	h.httpClient = resty.New().
+		SetRetryCount(10).
+		SetRetryWaitTime(100 * time.Millisecond).
+		SetRetryMaxWaitTime(2 * time.Second).
+		AddRetryCondition(
+			func(response *resty.Response, err error) bool {
+				return err != nil || response.StatusCode() >= http.StatusInternalServerError
+			},
+		)
+
 	// Let the body buffer be 4096 bytes at the start. It will be grown if
 	// necessary.
 	h.bodyBuf = bytes.NewBuffer(make([]byte, 0, 4096))
@@ -134,7 +142,7 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 		w, err := evt.WriteRFC5424(h.bodyBuf)
 		written += w
 		if err != nil {
-			glog.Warningf("Could not write to event request body (wrote %v) bytes: %v", written, err)
+			glog.Warningf("Could not write to event request body (wrote %v bytes): %v", written, err)
 			return
 		}
 
@@ -142,19 +150,16 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 		written++
 	}
 
-	req, err := http.NewRequest("POST", h.SinkURL, h.bodyBuf)
+	resp, err := h.httpClient.R().
+		SetBody(h.bodyBuf.String()).
+		Post(h.SinkURL)
+
 	if err != nil {
-		glog.Warningf(err.Error())
+		glog.Warningf("Error sending request: %v", err)
 		return
 	}
 
-	resp, err := h.httpClient.Do(req)
-	if err != nil {
-		glog.Warningf(err.Error())
-		return
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		glog.Warningf("Got HTTP code %v from %v", resp.StatusCode, h.SinkURL)
+	if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
+		glog.Warningf("Got HTTP code %v from %v", resp.StatusCode(), h.SinkURL)
 	}
 }

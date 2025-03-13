@@ -218,12 +218,11 @@ func ManufactureSink() (e EventSinkInterface) {
 		viper.SetDefault("eventHubSinkDiscardMessages", true)
 
 		bufferSize := viper.GetInt("eventHubSinkBufferSize")
-		overflow := viper.GetBool("eventHubSinkDiscardMessages")
-		eh, err := NewEventHubSink(connString, overflow, bufferSize)
+		eh, err := NewEventHubSink(connString, bufferSize)
 		if err != nil {
 			panic(err.Error())
 		}
-		go eh.Run(make(chan bool))
+		go eh.Run(make(chan struct{}))
 		return eh
 	// case "logfile"
 	default:

@@ -1,11 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"io"
 	"log"
 	"net/http"
-
-	"github.com/crewjam/rfc5424"
+	"strings"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -15,19 +15,19 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	m := new(rfc5424.Message)
-	discardBuf := make([]byte, 1)
+	reader := bufio.NewReader(r.Body)
 	for {
-		_, err := m.ReadFrom(r.Body)
+		msg, err := reader.ReadString('\n')
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatalf("Parsing rfc5424 message failed: %+v", err)
+			log.Fatalf("Error reading message: %v", err)
 		}
-		log.Printf("%s", m.Message)
-
-		// read the extraneous \n at the end of the message and discard
-		_, _ = io.ReadFull(r.Body, discardBuf)
+		msg = strings.TrimSpace(msg) // Trim the newline from the end
+		if len(msg) == 0 {
+			continue // Skip empty lines
+		}
+		log.Print(msg)
 	}
 }
 
