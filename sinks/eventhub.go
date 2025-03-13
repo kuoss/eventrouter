@@ -58,7 +58,6 @@ func (h *EventHubSink) Run(stopCh <-chan struct{}) {
 					events = append(events, evt)
 				default:
 					h.drainEvents(events)
-					break
 				}
 			}
 		case <-stopCh:
