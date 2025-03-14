@@ -88,12 +88,12 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 func (e *EventData) WriteFlattenedJSON(w io.Writer) (int64, error) {
 	eJSONBytes, err := json.Marshal(e)
 	if err != nil {
-		return 0, fmt.Errorf("failed to marshal event to json: %v", err)
+		return 0, fmt.Errorf("failed to marshal event to JSON: %v", err)
 	}
 
 	result, err := explodeJSONStr(string(eJSONBytes), "_")
 	if err != nil {
-		return 0, fmt.Errorf("failed to flatten json: %v", err)
+		return 0, fmt.Errorf("failed to flatten JSON: %v", err)
 	}
 
 	written, err := w.Write([]byte(result))
