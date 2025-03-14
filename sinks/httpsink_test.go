@@ -111,7 +111,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	<-doneCh
 
 	if got.Len() == 0 {
-		t.Errorf("Sent logs but didn't read any back. HTTP error log: %v", sink.httpClient.ErrLog)
+		t.Errorf("Sent logs but didn't read any back. HTTP error log: %v", sink.httpClient.Error)
 	}
 	if len(seenRequests) < 2 {
 		t.Errorf("Tried to simulate server errors for retry, more than one request should have been sent")
