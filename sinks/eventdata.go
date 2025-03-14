@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/kuoss/eventrouter/sinks/rfc5424message"
+	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -70,11 +70,11 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	// https://github.com/crewjam/rfc5424/blob/master/marshal.go#L90. There's no
 	// attempt at trying to clean them up here because hostnames and component
 	// names already adhere to this convention in practice.
-	msg := rfc5424message.Message{
+	msg := rfc5424.Message{
 		Timestamp: e.Event.LastTimestamp.Time,
 		Hostname:  e.Event.Source.Host,
 		AppName:   e.Event.Source.Component,
-		Message:   eJSONBytes,
+		Message:   string(eJSONBytes),
 	}
 
 	written, err := w.Write(msg.Bytes())
