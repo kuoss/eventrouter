@@ -118,7 +118,6 @@ func explodeJSONStr(jsonStr, separator string) (string, error) {
 	return string(flatJSON), nil
 }
 
-// flatten is a helper function that recursively flattens JSON.
 func flatten(prefix string, input interface{}, flatMap map[string]interface{}, separator string) {
 	if nestedMap, ok := input.(map[string]interface{}); ok {
 		for k, v := range nestedMap {
