@@ -12,13 +12,6 @@ import (
 	"k8s.io/utils/ptr"
 )
 
-type createTestEventOpts struct {
-	Name      string
-	Reason    string
-	FirstTime time.Time
-	LastTime  time.Time
-}
-
 func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
 	if name == "" {
 		name = "hello"
@@ -85,7 +78,6 @@ func TestWriteRFC5424(t *testing.T) {
 	got := buffer.String()
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, got)
 	assertEqualIgnoreDatetime(t, want, got)
 }
 
