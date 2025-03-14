@@ -86,12 +86,12 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 // 2) Convert the json into snake format
 // Eg: {"event_involved_object_kind":"pod", "event_metadata_namespace":"kube-system"}
 func (e *EventData) WriteFlattenedJSON(w io.Writer) (int64, error) {
-	eventJSON, err := json.Marshal(e)
+	eJSONBytes, err := json.Marshal(e)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal event to JSON: %v", err)
 	}
 
-	result, err := explodeJSONStr(string(eventJSON), "_")
+	result, err := explodeJSONStr(string(eJSONBytes), "_")
 	if err != nil {
 		return 0, fmt.Errorf("failed to flatten JSON: %v", err)
 	}
