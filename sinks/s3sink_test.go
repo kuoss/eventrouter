@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -23,7 +23,7 @@ func (m *MockUploader) Upload(input *s3manager.UploadInput, options ...func(*s3m
 func TestS3Sink_Upload(t *testing.T) {
 	mockUploader := new(MockUploader)
 	s3Sink, err := NewS3Sink("accessKeyID", "secretAccessKey", "region", "bucket", "bucketDir", 10, true, 1024, "flatjson")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	s3Sink.uploader = mockUploader
 
 	// Create a mock event
@@ -43,7 +43,7 @@ func TestS3Sink_Upload(t *testing.T) {
 	// Simulate event processing
 	s3Sink.drainEvents([]EventData{NewEventData(event, nil)})
 
-	assert.False(t, s3Sink.canUpload())
+	require.False(t, s3Sink.canUpload())
 
 	// Make upload happen
 	s3Sink.upload()
@@ -54,12 +54,12 @@ func TestS3Sink_Upload(t *testing.T) {
 
 func TestCanUpload(t *testing.T) {
 	s3Sink, err := NewS3Sink("accessKeyID", "secretAccessKey", "region", "bucket", "bucketDir", 5, true, 1024, "flatjson")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Set last upload time to now
 	s3Sink.lastUploadTimestamp = time.Now().Add(-10 * time.Second).UnixNano()
-	assert.True(t, s3Sink.canUpload())
+	require.True(t, s3Sink.canUpload())
 
 	s3Sink.lastUploadTimestamp = time.Now().UnixNano()
-	assert.False(t, s3Sink.canUpload())
+	require.False(t, s3Sink.canUpload())
 }

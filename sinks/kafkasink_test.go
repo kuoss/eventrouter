@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/IBM/sarama/mocks"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -35,7 +35,7 @@ func TestKafkaSink_UpdateEvents_SyncProducer(t *testing.T) {
 
 	// Set expectations on the mock producer
 	mockProducer.ExpectSendMessageWithCheckerFunctionAndSucceed(func(val []byte) error {
-		assert.JSONEq(t, string(expectedMessageJSON), string(val))
+		require.JSONEq(t, string(expectedMessageJSON), string(val))
 		return nil // Return nil as there is no error to return
 	})
 
@@ -69,7 +69,7 @@ func TestKafkaSink_UpdateEvents_AsyncProducer(t *testing.T) {
 
 	// Set expectations on the mock producer
 	mockProducer.ExpectInputWithCheckerFunctionAndSucceed(func(val []byte) error {
-		assert.JSONEq(t, string(expectedMessageJSON), string(val))
+		require.JSONEq(t, string(expectedMessageJSON), string(val))
 		return nil // Return nil as there is no error to return
 	})
 

@@ -49,7 +49,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		seenRequests = append(seenRequests, r)
 		written, err := io.Copy(got, r.Body)
 		require.NoError(t, err)
-		require.Greater(t, written, 0)
+		require.NotEmpty(t, written)
 		w.WriteHeader(mockStatus)
 	}))
 	defer srv.Close()

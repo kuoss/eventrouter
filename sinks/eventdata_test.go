@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
@@ -62,7 +62,7 @@ func zeroDatetime(input string) string {
 func assertEqualIgnoreDatetime(t *testing.T, expected, actual string) {
 	expectedZeroed := zeroDatetime(expected)
 	actualZeroed := zeroDatetime(actual)
-	assert.Equal(t, expectedZeroed, actualZeroed)
+	require.Equal(t, expectedZeroed, actualZeroed)
 }
 
 func TestWriteRFC5424(t *testing.T) {
@@ -77,7 +77,7 @@ func TestWriteRFC5424(t *testing.T) {
 
 	got := buffer.String()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assertEqualIgnoreDatetime(t, want, got)
 }
 
@@ -89,11 +89,11 @@ func TestWriteFlattenedJSON(t *testing.T) {
 
 	var buffer bytes.Buffer
 	_, err := eventData.WriteFlattenedJSON(&buffer)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	got := buffer.String()
 	assertEqualIgnoreDatetime(t, want, got)
-	assert.Contains(t, got, `"event_involvedObject_kind":`)
-	assert.Contains(t, got, `"event_metadata_namespace":"default"`)
-	assert.Contains(t, got, `"verb":"ADDED"`)
+	require.Contains(t, got, `"event_involvedObject_kind":`)
+	require.Contains(t, got, `"event_metadata_namespace":"default"`)
+	require.Contains(t, got, `"verb":"ADDED"`)
 }

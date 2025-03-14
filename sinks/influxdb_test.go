@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Mock server for InfluxDB
@@ -36,9 +36,9 @@ func TestEventToPointWithFields(t *testing.T) {
 	event := createTestEvent("success-test-event", "Succeeded", nil, nil)
 	point, err := eventToPointWithFields(event)
 
-	assert.NoError(t, err)
-	assert.NotNil(t, point)
-	assert.Equal(t, "events", point.Name())
+	require.NoError(t, err)
+	require.NotNil(t, point)
+	require.Equal(t, "events", point.Name())
 }
 
 // Test event data successfully sent to InfluxDB
@@ -49,7 +49,7 @@ func TestSendDataToInfluxDB(t *testing.T) {
 	// Send valid data
 	event := createTestEvent("test-event", "Succeeded", nil, nil)
 	point, err := eventToPoint(event)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Using a goroutine-safe approach for client operations
 	go func() {
@@ -64,7 +64,7 @@ func TestServerConnectionError(t *testing.T) {
 
 	event := createTestEvent("failed-event", "Failed", nil, nil)
 	point, err := eventToPointWithFields(event)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	go func() {
 		sink.sendData([]*write.Point{point})

@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBytes(t *testing.T) {
@@ -19,7 +19,7 @@ func TestBytes(t *testing.T) {
 	}
 
 	got := msg.Bytes()
-	assert.Equal(t, want, string(got))
+	require.Equal(t, want, string(got))
 }
 
 func TestNewFromBytes(t *testing.T) {
@@ -29,6 +29,6 @@ func TestNewFromBytes(t *testing.T) {
 	want := &Message{Timestamp: timestamp, Hostname: "test-host", AppName: "test-app", Message: "Hello, world!"}
 
 	got, err := NewFromBytes([]byte(input))
-	assert.NoError(t, err)
-	assert.Equal(t, want, got)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
 }
