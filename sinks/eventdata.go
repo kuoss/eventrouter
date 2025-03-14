@@ -18,15 +18,12 @@ package sinks
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 
-	"github.com/crewjam/rfc5424"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/json-iterator/go/extra"
+	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	v1 "k8s.io/api/core/v1"
-
-	"github.com/nytlabs/gojsonexplode"
 )
 
 // EventData encodes an eventrouter event and previous event, with a verb for
@@ -65,7 +62,6 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	if eJSONBytes, err = json.Marshal(e); err != nil {
 		return 0, fmt.Errorf("failed to json serialize event: %v", err)
 	}
-
 	// Each message should look like an RFC5424 syslog message:
 	// <NumberOfBytes/ASCII encoded integer><Space character><RFC5424 message:NumberOfBytes long>
 	//
@@ -75,14 +71,14 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	// attempt at trying to clean them up here because hostnames and component
 	// names already adhere to this convention in practice.
 	msg := rfc5424.Message{
-		Priority:  rfc5424.Daemon,
 		Timestamp: e.Event.LastTimestamp.Time,
 		Hostname:  e.Event.Source.Host,
 		AppName:   e.Event.Source.Component,
-		Message:   eJSONBytes,
+		Message:   string(eJSONBytes),
 	}
 
-	return msg.WriteTo(w)
+	written, err := w.Write(msg.Bytes())
+	return int64(written), err
 }
 
 // WriteFlattenedJSON writes the json to the file in the below format
@@ -90,18 +86,48 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 // 2) Convert the json into snake format
 // Eg: {"event_involved_object_kind":"pod", "event_metadata_namespace":"kube-system"}
 func (e *EventData) WriteFlattenedJSON(w io.Writer) (int64, error) {
-	var eJSONBytes []byte
-	var err error
-	extra.SetNamingStrategy(extra.LowerCaseWithUnderscores)
-	if eJSONBytes, err = jsoniter.Marshal(e); err != nil {
-		return 0, fmt.Errorf("failed to json serialize event: %v", err)
+	eJSONBytes, err := json.Marshal(e)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal event to JSON: %v", err)
 	}
 
-	result, err := gojsonexplode.Explodejsonstr(string(eJSONBytes), "_")
+	result, err := explodeJSONStr(string(eJSONBytes), "_")
 	if err != nil {
-		return 0, fmt.Errorf("failed to flatten json: %v", err)
+		return 0, fmt.Errorf("failed to flatten JSON: %v", err)
 	}
 
 	written, err := w.Write([]byte(result))
 	return int64(written), err
+}
+
+func explodeJSONStr(jsonStr, separator string) (string, error) {
+	var inputMap map[string]interface{}
+	err := json.Unmarshal([]byte(jsonStr), &inputMap)
+	if err != nil {
+		return "", errors.New("failed to unmarshal JSON")
+	}
+
+	flatMap := make(map[string]interface{})
+	flatten("", inputMap, flatMap, separator)
+
+	flatJSON, err := json.Marshal(flatMap)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal flattened JSON: %v", err)
+	}
+
+	return string(flatJSON), nil
+}
+
+func flatten(prefix string, input interface{}, flatMap map[string]interface{}, separator string) {
+	if nestedMap, ok := input.(map[string]interface{}); ok {
+		for k, v := range nestedMap {
+			newKey := k
+			if prefix != "" {
+				newKey = prefix + separator + k
+			}
+			flatten(newKey, v, flatMap, separator)
+		}
+	} else {
+		flatMap[prefix] = input
+	}
 }
