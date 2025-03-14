@@ -183,7 +183,7 @@ func ManufactureSink() (e EventSinkInterface) {
 			Concurrency:           concurrency,
 		}
 
-		influx, err := NewInfuxdbSink(cfg)
+		influx, err := NewInfluxdbSink(cfg)
 		if err != nil {
 			panic(err.Error())
 		}
