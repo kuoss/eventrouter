@@ -12,9 +12,14 @@ import (
 
 const maxMessageSize = 1046528
 
+// Define an interface that includes only the methods you use from eventhub.Hub.
+type EventHubClient interface {
+	SendBatch(ctx context.Context, iterator eventhub.BatchIterator, opts ...eventhub.BatchOption) error
+}
+
 // EventHubSink sends events to an Azure Event Hub.
 type EventHubSink struct {
-	hub     *eventhub.Hub
+	hub     EventHubClient // *eventhub.Hub
 	eventCh channels.Channel
 }
 
