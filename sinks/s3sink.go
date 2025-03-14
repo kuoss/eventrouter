@@ -15,6 +15,10 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+type IUploader interface {
+	Upload(*s3manager.UploadInput, ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
+}
+
 /*
 S3Sink is the sink that uploads the kubernetes events as json object stored in a file.
 The sinker uploads it to s3 if any of the below criteria gets fulfilled
@@ -26,7 +30,7 @@ Redshift and other visualization tools to use this data.
 */
 type S3Sink struct {
 	// uploader is the uploader client from aws which makes the API call to aws for upload
-	uploader *s3manager.Uploader
+	uploader IUploader
 
 	// bucket is the s3 bucket name where the events data would be stored
 	bucket string

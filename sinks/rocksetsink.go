@@ -19,12 +19,36 @@ package sinks
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 
 	apiclient "github.com/rockset/rockset-go-client"
 	models "github.com/rockset/rockset-go-client/lib/go"
 	v1 "k8s.io/api/core/v1"
 )
+
+type IRocksetClientWrapper interface {
+	Query(body models.QueryRequest) (models.QueryResponse, *http.Response, error)
+	AddDocuments(workspace string, collection string, dinfo models.AddDocumentsRequest) (models.AddDocumentsResponse, *http.Response, error)
+}
+
+type RocksetClientWrapper struct {
+	client *apiclient.RockClient
+}
+
+func NewRocksetClientWrapper(apiKey string, apiServer string) *RocksetClientWrapper {
+	client := apiclient.Client(apiKey, apiServer)
+	return &RocksetClientWrapper{client}
+}
+
+func (rcw *RocksetClientWrapper) Query(body models.QueryRequest) (models.QueryResponse, *http.Response, error) {
+	return rcw.client.Query(body)
+}
+
+func (rcw *RocksetClientWrapper) AddDocuments(workspace string, collection string, dinfo models.AddDocumentsRequest) (models.AddDocumentsResponse, *http.Response, error) {
+	docService := rcw.client.Documents
+	return docService.Add(workspace, collection, dinfo)
+}
 
 /*
 RocksetSink is a sink that uploads the kubernetes events as json object
@@ -34,7 +58,7 @@ Rockset can later be used with
 many different connectors such as Tableau or Redash to use this data.
 */
 type RocksetSink struct {
-	client                *apiclient.RockClient
+	client                IRocksetClientWrapper
 	rocksetCollectionName string
 	rocksetWorkspaceName  string
 }
@@ -42,9 +66,9 @@ type RocksetSink struct {
 // NewRocksetSink will create a new RocksetSink with default options, returned as
 // an EventSinkInterface
 func NewRocksetSink(rocksetAPIKey string, rocksetCollectionName string, rocksetWorkspaceName string) EventSinkInterface {
-	client := apiclient.Client(rocksetAPIKey, "https://api.rs2.usw2.rockset.com")
+	clientWrapper := NewRocksetClientWrapper(rocksetAPIKey, "https://api.rs2.usw2.rockset.com")
 	return &RocksetSink{
-		client:                client,
+		client:                clientWrapper,
 		rocksetCollectionName: rocksetCollectionName,
 		rocksetWorkspaceName:  rocksetWorkspaceName,
 	}
@@ -66,7 +90,7 @@ func (rs *RocksetSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	}
 	docs := []interface{}{m}
 	dinfo := models.AddDocumentsRequest{Data: docs}
-	_, _, err = rs.client.Documents.Add(rs.rocksetWorkspaceName, rs.rocksetCollectionName, dinfo)
+	_, _, err = rs.client.AddDocuments(rs.rocksetWorkspaceName, rs.rocksetCollectionName, dinfo)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Documents.Add err: %v", err)
 		return
