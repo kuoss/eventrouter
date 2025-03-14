@@ -29,14 +29,10 @@ func NewFromBytes(data []byte) (*Message, error) {
 		return nil, fmt.Errorf("invalid syslog format")
 	}
 
-	// 타임스탬프 파싱 (RFC3339Nano)
 	timestamp, err := time.Parse(time.RFC3339Nano, syslogParts[1])
 	if err != nil {
 		return nil, fmt.Errorf("invalid timestamp format: %v", err)
 	}
-
-	// 시스템 로컬 타임존으로 변환
-	timestamp = timestamp.In(time.Local)
 
 	return &Message{
 		Timestamp: timestamp,
