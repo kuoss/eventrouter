@@ -17,15 +17,16 @@ limitations under the License.
 package sinks
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/golang/glog"
-	influxdb "github.com/influxdata/influxdb/client"
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -69,9 +70,14 @@ type LabelDescriptor struct {
 	Description string `json:"description,omitempty"`
 }
 
+type InfluxDBSinkInterface interface {
+	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
+	sendData(points []*write.Point)
+}
+
 type InfluxDBSink struct {
 	config InfluxdbConfig
-	client *influxdb.Client
+	client influxdb2.Client
 	sync.RWMutex
 	dbExists bool
 }
@@ -91,53 +97,29 @@ type InfluxdbConfig struct {
 }
 
 // Returns a thread-safe implementation of EventSinkInterface for InfluxDB.
-func NewInfuxdbSink(cfg InfluxdbConfig) (EventSinkInterface, error) {
-	client, err := newClient(cfg)
-	if err != nil {
-		return nil, err
+func NewInfluxdbSink(cfg InfluxdbConfig) (InfluxDBSinkInterface, error) {
+	protocol := "http"
+	if cfg.Secure {
+		protocol = "https"
 	}
+
+	serverURL := fmt.Sprintf("%s://%s", protocol, cfg.Host)
+	authToken := fmt.Sprintf("%s:%s", cfg.User, cfg.Password)
+	client := influxdb2.NewClientWithOptions(serverURL, authToken,
+		influxdb2.DefaultOptions().SetTLSConfig(&tls.Config{InsecureSkipVerify: cfg.InsecureSsl}),
+	)
 
 	return &InfluxDBSink{
-		config:   cfg,
-		client:   client,
-		dbExists: false,
+		config: cfg,
+		client: client,
 	}, nil
-}
-
-func newClient(c InfluxdbConfig) (*influxdb.Client, error) {
-	url := &url.URL{
-		Scheme: "http",
-		Host:   c.Host,
-	}
-
-	if c.Secure {
-		url.Scheme = "https"
-	}
-
-	iConfig := &influxdb.Config{
-		URL:       *url,
-		Username:  c.User,
-		Password:  c.Password,
-		UnsafeSsl: c.InsecureSsl,
-	}
-
-	client, err := influxdb.NewClient(*iConfig)
-	if err != nil {
-		return nil, err
-	}
-
-	if _, _, err := client.Ping(); err != nil {
-		return nil, fmt.Errorf("failed to ping influxDB server at %q - %v", c.Host, err)
-	}
-
-	return client, nil
 }
 
 func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	sink.Lock()
 	defer sink.Unlock()
 
-	var point *influxdb.Point
+	var point *write.Point
 	var err error
 	if sink.config.WithFields {
 		point, err = eventToPointWithFields(eNew)
@@ -148,14 +130,10 @@ func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 		glog.Warningf("Failed to convert event to point: %v", err)
 	}
 
-	point.Tags["cluster_name"] = sink.config.ClusterName
-
-	dataPoints := make([]influxdb.Point, 0, 10)
-	dataPoints = append(dataPoints, *point)
-	sink.sendData(dataPoints)
+	point.AddTag("cluster_name", sink.config.ClusterName)
+	sink.sendData([]*write.Point{point})
 }
 
-// Generate point value for event
 func getEventValue(event *v1.Event) (string, error) {
 	bytes, err := json.MarshalIndent(event, "", " ")
 	if err != nil {
@@ -164,129 +142,59 @@ func getEventValue(event *v1.Event) (string, error) {
 	return string(bytes), nil
 }
 
-func eventToPointWithFields(event *v1.Event) (*influxdb.Point, error) {
-	point := influxdb.Point{
-		Measurement: "events",
-		Time:        event.LastTimestamp.Time.UTC(),
-		Fields: map[string]interface{}{
-			"message": event.Message,
-		},
-		Tags: map[string]string{
-			eventUID: string(event.UID),
-		},
+func eventToPointWithFields(event *v1.Event) (*write.Point, error) {
+	tags := map[string]string{
+		eventUID:               string(event.UID),
+		"message":              event.Message,
+		"object_name":          event.InvolvedObject.Name,
+		"type":                 event.Type,
+		"kind":                 event.InvolvedObject.Kind,
+		"component":            event.Source.Component,
+		"reason":               event.Reason,
+		LabelNamespaceName.Key: event.Namespace,
+		LabelHostname.Key:      event.Source.Host,
 	}
 	if event.InvolvedObject.Kind == "Pod" {
-		point.Tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
+		tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
 	}
-	point.Tags["object_name"] = event.InvolvedObject.Name
-	point.Tags["type"] = event.Type
-	point.Tags["kind"] = event.InvolvedObject.Kind
-	point.Tags["component"] = event.Source.Component
-	point.Tags["reason"] = event.Reason
-	point.Tags[LabelNamespaceName.Key] = event.Namespace
-	point.Tags[LabelHostname.Key] = event.Source.Host
-	return &point, nil
+	fields := map[string]interface{}{}
+	ts := event.LastTimestamp.Time.UTC()
+	return influxdb2.NewPoint("events", tags, fields, ts), nil
 }
 
-func eventToPoint(event *v1.Event) (*influxdb.Point, error) {
+func eventToPoint(event *v1.Event) (*write.Point, error) {
 	value, err := getEventValue(event)
 	if err != nil {
 		return nil, err
 	}
 
-	point := influxdb.Point{
-		Measurement: eventMeasurementName,
-		Time:        event.LastTimestamp.Time.UTC(),
-		Fields: map[string]interface{}{
-			valueField: value,
-		},
-		Tags: map[string]string{
-			eventUID: string(event.UID),
-		},
+	tags := map[string]string{
+		eventUID: string(event.UID),
 	}
 	if event.InvolvedObject.Kind == "Pod" {
-		point.Tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
-		point.Tags[LabelPodName.Key] = event.InvolvedObject.Name
+		tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
+		tags[LabelPodName.Key] = event.InvolvedObject.Name
 	}
-	point.Tags[LabelHostname.Key] = event.Source.Host
-	return &point, nil
+	tags[LabelHostname.Key] = event.Source.Host
+
+	fields := map[string]interface{}{
+		valueField: value,
+	}
+
+	ts := event.LastTimestamp.Time.UTC()
+	point := influxdb2.NewPoint(eventMeasurementName, tags, fields, ts)
+	return point, nil
 }
 
-func (sink *InfluxDBSink) sendData(dataPoints []influxdb.Point) {
-	if err := sink.createDatabase(); err != nil {
-		glog.Errorf("Failed to create influxdb: %v", err)
-		return
-	}
-	bp := influxdb.BatchPoints{
-		Points:          dataPoints,
-		Database:        sink.config.DbName,
-		RetentionPolicy: "default",
-	}
+func (sink *InfluxDBSink) sendData(points []*write.Point) {
+	writeAPI := sink.client.WriteAPIBlocking("", sink.config.DbName)
 
-	start := time.Now()
-	if _, err := sink.client.Write(bp); err != nil {
+	// Attempt to write the points
+	if err := writeAPI.WritePoint(context.Background(), points...); err != nil {
 		glog.Errorf("InfluxDB write failed: %v", err)
+		// Handle potential connection issues
 		if strings.Contains(err.Error(), dbNotFoundError) {
-			sink.resetConnection()
-		} else if _, _, err := sink.client.Ping(); err != nil {
-			glog.Errorf("InfluxDB ping failed: %v", err)
-			sink.resetConnection()
+			sink.dbExists = false
 		}
 	}
-	end := time.Now()
-	glog.V(4).Infof("Exported %d data to influxDB in %s", len(dataPoints), end.Sub(start))
-}
-
-func (sink *InfluxDBSink) resetConnection() {
-	glog.Infof("Influxdb connection reset")
-	sink.dbExists = false
-	sink.client = nil
-	sink.config = InfluxdbConfig{}
-}
-
-func (sink *InfluxDBSink) createDatabase() error {
-	if sink.client == nil {
-		client, err := newClient(sink.config)
-		if err != nil {
-			return err
-		}
-		sink.client = client
-	}
-
-	if sink.dbExists {
-		return nil
-	}
-
-	q := influxdb.Query{
-		Command: fmt.Sprintf(`CREATE DATABASE %s WITH NAME "default"`, sink.config.DbName),
-	}
-
-	if resp, err := sink.client.Query(q); err != nil {
-		// We want to return error only if it is not "already exists" error.
-		if !(resp != nil && resp.Err != nil && strings.Contains(resp.Err.Error(), "existing policy")) {
-			err := sink.createRetentionPolicy()
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	sink.dbExists = true
-	glog.Infof("Created database %q on influxDB server at %q", sink.config.DbName, sink.config.Host)
-	return nil
-}
-
-func (sink *InfluxDBSink) createRetentionPolicy() error {
-	q := influxdb.Query{
-		Command: fmt.Sprintf(`CREATE RETENTION POLICY "default" ON %s DURATION 0d REPLICATION 1 DEFAULT`, sink.config.DbName),
-	}
-
-	if resp, err := sink.client.Query(q); err != nil {
-		if !(resp != nil && resp.Err != nil && strings.Contains(resp.Err.Error(), "already exists")) {
-			return fmt.Errorf("retention policy creation failed: %v", err)
-		}
-	}
-
-	glog.Infof("Created database %q on influxDB server at %q", sink.config.DbName, sink.config.Host)
-	return nil
 }

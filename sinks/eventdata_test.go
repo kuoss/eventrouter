@@ -2,6 +2,7 @@ package sinks
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -12,19 +13,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func createTestEvent() *v1.Event {
+func createTestEvent(name, reason string) *v1.Event {
 	return &v1.Event{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-event",
+			Name:      name,
 			Namespace: "default",
+			UID:       "12345",
 		},
 		InvolvedObject: v1.ObjectReference{
 			Kind: "Pod",
-			Name: "test-pod",
+			UID:  "pod12345",
 		},
-		Reason:         "Scheduled",
+		Reason:         reason,
 		Message:        "Successfully assigned test-pod to node-1",
-		Source:         v1.EventSource{Component: "scheduler", Host: "node-1"},
+		Source:         v1.EventSource{Component: "kubelet", Host: "node-1"},
 		FirstTimestamp: metav1.Time{Time: time.Now()},
 		LastTimestamp:  metav1.Time{Time: time.Now()},
 		Type:           "Normal",
@@ -32,7 +34,7 @@ func createTestEvent() *v1.Event {
 }
 
 func TestWriteRFC5424(t *testing.T) {
-	event := createTestEvent()
+	event := createTestEvent("test-event", "Scheduled")
 	eventData := NewEventData(event, nil)
 
 	var buffer bytes.Buffer
@@ -56,18 +58,18 @@ func TestWriteRFC5424(t *testing.T) {
 }
 
 func TestWriteFlattenedJSON(t *testing.T) {
-	event := createTestEvent()
+	want := `{"event_eventTime":null,"event_firstTimestamp":"2000-01-01T00:00:00Z","event_involvedObject_kind":"Pod","event_involvedObject_uid":"pod12345","event_lastTimestamp":"2000-01-01T00:00:00Z","event_message":"Successfully assigned test-pod to node-1","event_metadata_creationTimestamp":null,"event_metadata_name":"test-event","event_metadata_namespace":"default","event_metadata_uid":"12345","event_reason":"Scheduled","event_reportingComponent":"","event_reportingInstance":"","event_source_component":"kubelet","event_source_host":"node-1","event_type":"Normal","verb":"ADDED"}`
+
+	event := createTestEvent("test-event", "Scheduled")
 	eventData := NewEventData(event, nil)
 
 	var buffer bytes.Buffer
 	_, err := eventData.WriteFlattenedJSON(&buffer)
-
 	assert.NoError(t, err)
-	assert.NotEmpty(t, buffer.String())
-
-	// Check if JSON is flattened into snake case format
-	output := buffer.String()
-	assert.Contains(t, output, `"event_involvedObject_kind":`)
-	assert.Contains(t, output, `"event_metadata_namespace":"default"`)
-	assert.Contains(t, output, `"verb":"ADDED"`)
+	timestampRegex := `"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"`
+	got := regexp.MustCompile(timestampRegex).ReplaceAllString(buffer.String(), `"2000-01-01T00:00:00Z"`)
+	assert.Equal(t, want, got)
+	assert.Contains(t, got, `"event_involvedObject_kind":`)
+	assert.Contains(t, got, `"event_metadata_namespace":"default"`)
+	assert.Contains(t, got, `"verb":"ADDED"`)
 }
