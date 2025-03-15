@@ -4,7 +4,7 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-w -s -trimpath" -o /eventrouter
+RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /eventrouter
 RUN echo '{"sink": "stdout"}' > /config.json
 
 FROM gcr.io/distroless/static-debian12:latest
