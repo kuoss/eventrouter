@@ -11,7 +11,6 @@ require (
 	github.com/golang/glog v1.2.4
 	github.com/influxdata/influxdb-client-go/v2 v2.14.0
 	github.com/prometheus/client_golang v1.21.1
-	github.com/rockset/rockset-go-client v0.6.0
 	github.com/spf13/viper v1.19.0
 	github.com/stretchr/testify v1.10.0
 	k8s.io/api v0.30.11
