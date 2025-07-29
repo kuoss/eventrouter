@@ -1,35 +1,42 @@
+PROJECT_NAME := eventrouter
+CLUSTER_NAME := eventrouter-cluster
+VERSION := dev
+IMG := ghcr.io/kuoss/eventrouter:$(VERSION)
 
-IMG ?= ghcr.io/kuoss/eventrouter:development
+# checks
+.PHONY: checks
+checks: test lint docker-build vulncheck
 
-.PHONY: docker
-docker:
-	docker build -t $(IMG) .
-
-_test:
-	$(DOCKER_BUILD) '$(TEST)'
-
-vet:
-	$(DOCKER_BUILD) '$(VET)'
-
-.PHONY: all local container push
-
-clean:
-	rm -f $(TARGET)
-	$(DOCKER) rmi $(REGISTRY)/$(TARGET):latest
-	$(DOCKER) rmi $(REGISTRY)/$(TARGET):$(VERSION)
-
-checks: test build lint
-
+.PHONY: test
 test:
 	go test -v ./...
 
-build:
-	CGO_ENABLED=0 go build -ldflags=-w -o bin/eventrouter
-
+.PHONY: lint
 lint:
 	which golangci-lint || go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
 	golangci-lint run --timeout 5m
 
+.PHONY: docker-build
+docker-build:
+	docker build -t $(IMG) .
+
+.PHONY: vulncheck
 vulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
+
+# kind
+.PHONY: kind-create
+kind-create:
+	kind create cluster --name $(CLUSTER_NAME)
+
+.PHONY: kind-deploy
+kind-deploy:
+	kind load docker-image $(IMG) --name $(CLUSTER_NAME)
+	sed 's|latest|$(VERSION)|g' yaml/eventrouter.yaml | grep image:
+	sed 's|latest|$(VERSION)|g' yaml/eventrouter.yaml | kubectl apply -f -
+	kubectl -n kube-system get pod -l app=eventrouter
+
+.PHONY: kind-delete
+kind-delete:
+	kind delete cluster --name $(CLUSTER_NAME)
