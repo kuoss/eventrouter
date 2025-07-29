@@ -12,7 +12,9 @@ import (
 func TestKafkaSink_UpdateEvents_SyncProducer(t *testing.T) {
 	// Set up the mock sync producer
 	mockProducer := mocks.NewSyncProducer(t, nil)
-	defer mockProducer.Close()
+	defer func() {
+		require.NoError(t, mockProducer.Close(), "mockProducer.Close() error")
+	}()
 
 	// Create a KafkaSink with the mock producer
 	kafkaSink := &KafkaSink{
@@ -46,7 +48,9 @@ func TestKafkaSink_UpdateEvents_SyncProducer(t *testing.T) {
 func TestKafkaSink_UpdateEvents_AsyncProducer(t *testing.T) {
 	// Set up the mock async producer
 	mockProducer := mocks.NewAsyncProducer(t, nil)
-	defer mockProducer.Close()
+	defer func() {
+		require.NoError(t, mockProducer.Close(), "mockProducer.Close() error")
+	}()
 
 	// Create a KafkaSink with the mock producer
 	kafkaSink := &KafkaSink{

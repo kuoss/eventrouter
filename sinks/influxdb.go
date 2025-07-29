@@ -158,7 +158,7 @@ func eventToPointWithFields(event *v1.Event) (*write.Point, error) {
 		tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
 	}
 	fields := map[string]interface{}{}
-	ts := event.LastTimestamp.Time.UTC()
+	ts := event.LastTimestamp.UTC()
 	return influxdb2.NewPoint("events", tags, fields, ts), nil
 }
 
@@ -181,7 +181,7 @@ func eventToPoint(event *v1.Event) (*write.Point, error) {
 		valueField: value,
 	}
 
-	ts := event.LastTimestamp.Time.UTC()
+	ts := event.LastTimestamp.UTC()
 	point := influxdb2.NewPoint(eventMeasurementName, tags, fields, ts)
 	return point, nil
 }
