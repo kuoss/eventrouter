@@ -43,8 +43,7 @@ spec:
       labels:
         app: eventrouter
     spec:
-      containers:
-        - name: kube-eventrouter
-          image: ghcr.io/kuoss/eventrouter:latest
-          imagePullPolicy: Always
       serviceAccount: eventrouter
+      containers:
+      - name: eventrouter
+        image: ghcr.io/kuoss/eventrouter:latest
