@@ -4,7 +4,7 @@ metadata:
   name: eventrouter 
   namespace: kube-system
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: eventrouter 
@@ -13,7 +13,7 @@ rules:
   resources: ["events"]
   verbs: ["get", "watch", "list"]
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: eventrouter 
@@ -24,18 +24,6 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: eventrouter
-  namespace: kube-system
----
-apiVersion: v1
-data:
-  config.json: |- 
-    {
-      "sink": "eventhub",
-      "eventHubConnectionString": "${EVENTHUB_CONNECTION_STRING}"
-    }
-kind: ConfigMap
-metadata:
-  name: eventrouter-cm
   namespace: kube-system
 ---
 apiVersion: apps/v1
@@ -54,17 +42,26 @@ spec:
     metadata:
       labels:
         app: eventrouter
-        tier: control-plane-addons
     spec:
-      containers:
-        - name: kube-eventrouter
-          image: ghcr.io/kuoss/eventrouter:latest
-          imagePullPolicy: Always
-          volumeMounts:
-          - name: config-volume
-            mountPath: /etc/eventrouter
       serviceAccount: eventrouter
-      volumes:
+      containers:
+      - name: eventrouter
+        image: ghcr.io/kuoss/eventrouter:latest
+        volumeMounts:
         - name: config-volume
-          configMap:
-            name: eventrouter-cm
+          mountPath: /etc/eventrouter
+      volumes:
+      - name: config-volume
+        configMap:
+          name: eventrouter
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventrouter
+  namespace: kube-system
+data:
+  config.json: |
+    {
+      "sink": "stdout"
+    }

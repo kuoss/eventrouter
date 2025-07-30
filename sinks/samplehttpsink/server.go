@@ -15,7 +15,11 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read body", http.StatusInternalServerError)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			log.Printf("r.Body.Close() error: %v", err)
+		}
+	}()
 
 	m, err := rfc5424.NewFromBytes(body)
 	if err != nil {
