@@ -33,8 +33,8 @@ kind-create:
 .PHONY: kind-deploy
 kind-deploy:
 	kind load docker-image $(IMG) --name $(CLUSTER_NAME)
-	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-logrotate.yaml | grep image:
-	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-logrotate.yaml | kubectl apply -f -
+	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-sidecar.yaml | grep image:
+	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-sidecar.yaml | kubectl apply -f -
 	kubectl -n kube-system get pod -l app=eventrouter
 
 .PHONY: kind-delete
