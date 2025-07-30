@@ -1,5 +1,5 @@
 PROJECT_NAME := eventrouter
-CLUSTER_NAME := eventrouter-cluster
+CLUSTER_NAME := kind1
 VERSION := dev
 IMG := ghcr.io/kuoss/eventrouter:$(VERSION)
 
