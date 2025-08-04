@@ -1,6 +1,6 @@
 PROJECT_NAME := eventrouter
 CLUSTER_NAME := kind1
-VERSION := dev
+VERSION := latest
 IMG := ghcr.io/kuoss/eventrouter:$(VERSION)
 
 # checks
@@ -25,18 +25,31 @@ vulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 	govulncheck ./...
 
-# kind
+
+#### test on kind ####
 .PHONY: kind-create
 kind-create:
 	kind create cluster --name $(CLUSTER_NAME)
 
 .PHONY: kind-deploy
 kind-deploy:
+	docker pull $(IMG)
 	kind load docker-image $(IMG) --name $(CLUSTER_NAME)
 	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-sidecar.yaml | grep image:
 	sed 's|latest|$(VERSION)|g' yaml/eventrouter-with-sidecar.yaml | kubectl apply -f -
 	kubectl -n kube-system get pod -l app=eventrouter
+	kubectl -n kube-system rollout restart deploy -l app=eventrouter
+	kubectl -n kube-system logs -l app=eventrouter -f
 
 .PHONY: kind-delete
 kind-delete:
 	kind delete cluster --name $(CLUSTER_NAME)
+
+.PHONY: kind-fluentbit
+kind-fluentbit:
+	docker pull fluent/fluent-bit
+	kind load docker-image fluent/fluent-bit --name $(CLUSTER_NAME)
+	kubectl apply -f yaml/fluentbit-eventrouter.yaml
+	kubectl -n kube-system get pod -l app=fluentbit-eventrouter
+	kubectl -n kube-system rollout restart deploy -l app=fluentbit-eventrouter
+	kubectl -n kube-system logs -l app=fluentbit-eventrouter -f
