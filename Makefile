@@ -45,11 +45,11 @@ kind-deploy:
 kind-delete:
 	kind delete cluster --name $(CLUSTER_NAME)
 
-.PHONY: kind-fluentbit
-kind-fluentbit:
+.PHONY: kind-eventbit
+kind-eventbit:
 	docker pull fluent/fluent-bit
 	kind load docker-image fluent/fluent-bit --name $(CLUSTER_NAME)
-	kubectl apply -f yaml/fluentbit-eventrouter.yaml
-	kubectl -n kube-system get pod -l app=fluentbit-eventrouter
-	kubectl -n kube-system rollout restart deploy -l app=fluentbit-eventrouter
-	kubectl -n kube-system logs -l app=fluentbit-eventrouter -f
+	kubectl apply -f yaml/eventbit.yaml
+	kubectl -n kube-system get pod -l app=eventbit
+	kubectl -n kube-system rollout restart deploy -l app=eventbit
+	kubectl -n kube-system logs -l app=eventbit -f
