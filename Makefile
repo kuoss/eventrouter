@@ -47,9 +47,18 @@ kind-delete:
 
 .PHONY: kind-eventbit
 kind-eventbit:
-	docker pull fluent/fluent-bit
-	kind load docker-image fluent/fluent-bit --name $(CLUSTER_NAME)
+	docker pull fluent/fluent-bit:latest
+	kind load docker-image fluent/fluent-bit:latest --name $(CLUSTER_NAME)
 	kubectl apply -f yaml/eventbit.yaml
 	kubectl -n kube-system get pod -l app=eventbit
 	kubectl -n kube-system rollout restart deploy -l app=eventbit
 	kubectl -n kube-system logs -l app=eventbit -f
+
+.PHONY: kind-eventexp
+kind-eventexp:
+	docker pull ghcr.io/resmoio/kubernetes-event-exporter:latest
+	kind load docker-image ghcr.io/resmoio/kubernetes-event-exporter:latest --name $(CLUSTER_NAME)
+	kubectl apply -f yaml/eventexp.yaml
+	kubectl -n kube-system get pod -l app=eventexp
+	kubectl -n kube-system rollout restart deploy -l app=eventexp
+	kubectl -n kube-system logs -l app=eventexp -f
