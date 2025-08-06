@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: eventbit
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eventbit
+rules:
+- apiGroups: [""]
+  resources: ["events"]
+  verbs: ["get", "watch", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eventbit
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: eventbit
+subjects:
+- kind: ServiceAccount
+  name: eventbit
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventbit
+  namespace: kube-system
+  labels:
+    app: eventbit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventbit
+  template:
+    metadata:
+      labels:
+        app: eventbit
+    spec:
+      serviceAccount: eventbit
+      containers:
+      - name: eventbit
+        image: fluent/fluent-bit
+        args:
+        - -c
+        - /fluent-bit/etc/fluent-bit.yaml
+        volumeMounts:
+        - name: config-volume
+          mountPath: /fluent-bit/etc
+      volumes:
+      - name: config-volume
+        configMap:
+          name: eventbit
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventbit
+  namespace: kube-system
+data:
+  fluent-bit.yaml: |
+    service:
+      flush: 1
+      log_level: warning
+    
+    pipeline:
+      inputs:
+        - name: kubernetes_events
+          tag: k8s_events
+      outputs:
+        - name: stdout
+          match: '*'
+          format: json_lines
+
+# Fluent Bit v4.0.6
+# * Copyright (C) 2015-2025 The Fluent Bit Authors
+# * Fluent Bit is a CNCF sub-project under the umbrella of Fluentd
+# * https://fluentbit.io
+#
+# ______ _                  _    ______ _ _             ___  _____ 
+# |  ___| |                | |   | ___ (_) |           /   ||  _  |
+# | |_  | |_   _  ___ _ __ | |_  | |_/ /_| |_  __   __/ /| || |/' |
+# |  _| | | | | |/ _ \ '_ \| __| | ___ \ | __| \ \ / / /_| ||  /| |
+# | |   | | |_| |  __/ | | | |_  | |_/ / | |_   \ V /\___  |\ |_/ /
+# \_|   |_|\__,_|\___|_| |_|\__| \____/|_|\__|   \_/     |_(_)___/ 
+#
+#
+# {"date":1754476365.0,"metadata":{"name":"kind1-control-plane.185926f583063668","namespace":"default","uid":"1ec9a8f7-f5da-46d8-b804-470b141f6bf0","resourceVersion":"206","creationTimestamp":"2025-08-06T10:32:55Z","managedFields":[{"manager":"kubelet","operation":"Update","apiVersion":"v1","time":"2025-08-06T10:32:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:count":{},"f:firstTimestamp":{},"f:involvedObject":{},"f:lastTimestamp":{},"f:message":{},"f:reason":{},"f:source":{"f:component":{},"f:host":{}},"f:type":{}}}]},"involvedObject":{"kind":"Node","name":"kind1-control-plane","uid":"kind1-control-plane"},"reason":"Starting","message":"Starting kubelet.","source":{"component":"kubelet","host":"kind1-control-plane"},"firstTimestamp":"2025-08-06T10:32:45Z","lastTimestamp":"2025-08-06T10:32:45Z","count":1,"type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}
+# {"date":1754476365.0,"metadata":{"name":"kind1-control-plane.185926f58457172a","namespace":"default","uid":"1f01190b-9c25-4f88-ba22-a24a44a7b054","resourceVersion":"228","creationTimestamp":"2025-08-06T10:32:55Z","managedFields":[{"manager":"kubelet","operation":"Update","apiVersion":"v1","time":"2025-08-06T10:32:56Z","fieldsType":"FieldsV1","fieldsV1":{"f:count":{},"f:firstTimestamp":{},"f:involvedObject":{},"f:lastTimestamp":{},"f:message":{},"f:reason":{},"f:source":{"f:component":{},"f:host":{}},"f:type":{}}}]},"involvedObject":{"kind":"Node","name":"kind1-control-plane","uid":"kind1-control-plane"},"reason":"NodeHasSufficientMemory","message":"Node kind1-control-plane status is now: NodeHasSufficientMemory","source":{"component":"kubelet","host":"kind1-control-plane"},"firstTimestamp":"2025-08-06T10:32:45Z","lastTimestamp":"2025-08-06T10:32:45Z","count":4,"type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}
+# {"date":1754476365.0,"metadata":{"name":"kind1-control-plane.185926f584573b61","namespace":"default","uid":"21f77b3d-bcd8-43a0-88b1-4b8726e3770d","resourceVersion":"215","creationTimestamp":"2025-08-06T10:32:55Z","managedFields":[{"manager":"kubelet","operation":"Update","apiVersion":"v1","time":"2025-08-06T10:32:55Z","fieldsType":"FieldsV1","fieldsV1":{"f:count":{},"f:firstTimestamp":{},"f:involvedObject":{},"f:lastTimestamp":{},"f:message":{},"f:reason":{},"f:source":{"f:component":{},"f:host":{}},"f:type":{}}}]},"involvedObject":{"kind":"Node","name":"kind1-control-plane","uid":"kind1-control-plane"},"reason":"NodeHasNoDiskPressure","message":"Node kind1-control-plane status is now: NodeHasNoDiskPressure","source":{"component":"kubelet","host":"kind1-control-plane"},"firstTimestamp":"2025-08-06T10:32:45Z","lastTimestamp":"2025-08-06T10:32:45Z","count":3,"type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}
+# ...
