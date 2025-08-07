@@ -1,0 +1,88 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: kube-system
+  name: eventexp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eventexp
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: eventexp
+subjects:
+  - kind: ServiceAccount
+    namespace: kube-system
+    name: eventexp
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: eventexp
+rules:
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["get", "watch", "list"]
+- apiGroups: ["coordination.k8s.io"]
+  resources: ["leases"]
+  verbs: ["*"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eventexp
+  namespace: kube-system
+  labels:
+    app: eventexp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: eventexp
+  template:
+    metadata:
+      labels:
+        app: eventexp
+    spec:
+      serviceAccountName: eventexp
+      containers:
+      - name: eventexp
+        image: ghcr.io/resmoio/kubernetes-event-exporter:latest
+        args:
+        - -conf=/data/config.yaml
+        volumeMounts:
+        - name: config-volume
+          mountPath: /data
+      volumes:
+      - name: config-volume
+        configMap:
+          name: eventexp
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventexp
+  namespace: kube-system
+data:
+  config.yaml: |
+    logLevel: warn
+    logFormat: json
+    metricsNamePrefix: event_exporter_
+    route:
+      routes:
+        - match:
+            - receiver: "dump"
+    receivers:
+      - name: "dump"
+        stdout: {}
+
+# {"level":"info","time":"2025-08-06T11:16:11Z","message":"Reading config file /data/config.yaml"}
+# I0806 11:16:13.113823       1 request.go:690] Waited for 1.178654066s due to client-side throttling, not priority and fairness, request: GET:https://10.96.0.1:443/apis/coordination.k8s.io/v1
+# {"metadata":{"name":"eventexp-944577d69-kwfsm.18592953f0627e3a","namespace":"kube-system","uid":"095f71a4-34bf-459b-9958-e654b9bab696","resourceVersion":"3901","creationTimestamp":"2025-08-06T11:16:10Z"},"reason":"Scheduled","message":"Successfully assigned kube-system/eventexp-944577d69-kwfsm to kind1-control-plane","source":{"component":"default-scheduler"},"firstTimestamp":"2025-08-06T11:16:10Z","lastTimestamp":"2025-08-06T11:16:10Z","count":1,"type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":"","clusterName":"","involvedObject":{"kind":"Pod","namespace":"kube-system","name":"eventexp-944577d69-kwfsm","uid":"062abbf0-aad9-48c9-a395-24ea39fa44f3","apiVersion":"v1","resourceVersion":"3897","labels":{"app":"eventexp","pod-template-hash":"944577d69"},"annotations":{"kubectl.kubernetes.io/restartedAt":"2025-08-06T11:16:10Z"},"ownerReferences":[{"apiVersion":"apps/v1","kind":"ReplicaSet","name":"eventexp-944577d69","uid":"77afc7cb-a68a-4205-ae3f-967b0beb87ee","controller":true,"blockOwnerDeletion":true}],"deleted":false}}
+# {"level":"warn","event age":"8.517592882s","event namespace":"kube-system","event name":"eventexp.185929547e651c7f","time":"2025-08-06T11:16:20Z","message":"Event discarded as being older then maxEventAgeSeconds"}
+# {"level":"warn","event age":"8.517701994s","event namespace":"kube-system","event name":"eventexp-77cf68874.185929547eb77db7","time":"2025-08-06T11:16:20Z","message":"Event discarded as being older then maxEventAgeSeconds"}
+# {"level":"warn","event age":"8.517711979s","event namespace":"kube-system","event name":"eventexp-77cf68874-mssfn.185929547f58109b","time":"2025-08-06T11:16:20Z","message":"Event discarded as being older then maxEventAgeSeconds"}
+# {"metadata":{"name":"eventexp-944577d69-kwfsm.1859295445df604a","namespace":"kube-system","uid":"ba408c10-ced2-4a95-bdde-9fe06a278059","resourceVersion":"3909","creationTimestamp":"2025-08-06T11:16:11Z"},"reason":"Pulled","message":"Successfully pulled image \"ghcr.io/resmoio/kubernetes-event-exporter:latest\" in 1.005936488s","source":{"component":"kubelet","host":"kind1-control-plane"},"firstTimestamp":"2025-08-06T11:16:11Z","lastTimestamp":"2025-08-06T11:16:11Z","count":1,"type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":"","clusterName":"","involvedObject":{"kind":"Pod","namespace":"kube-system","name":"eventexp-944577d69-kwfsm","uid":"062abbf0-aad9-48c9-a395-24ea39fa44f3","apiVersion":"v1","resourceVersion":"3899","fieldPath":"spec.containers{eventexp}","labels":{"app":"eventexp","pod-template-hash":"944577d69"},"annotations":{"kubectl.kubernetes.io/restartedAt":"2025-08-06T11:16:10Z"},"ownerReferences":[{"apiVersion":"apps/v1","kind":"ReplicaSet","name":"eventexp-944577d69","uid":"77afc7cb-a68a-4205-ae3f-967b0beb87ee","controller":true,"blockOwnerDeletion":true}],"deleted":false}}
+# ...
