@@ -12,31 +12,20 @@ This project has several objectives, which include:
 * It should be relatively low overhead
 * Support for multiple _sinks_ should be configurable
 
-### NOTE:
-
-By default, eventrouter is configured to leverage existing EFK stacks by outputting wrapped json object which are easy to index in elastic search. 
-
 ## Non-Goals: 
 
 * This service does not provide a querable extension, that is a responsibility of the 
 _sink_
 * This service does not serve as a storage layer, that is also the responsibility of the _sink_
 
-## Running Eventrouter 
-Standup: 
+## Deployment
 ```
-$ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/yaml/eventrouter.yaml
-```
-Teardown: 
-```
-$ kubectl delete -f https://raw.githubusercontent.com/kuoss/eventrouter/main/yaml/eventrouter.yaml
+$ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/deploy/deploy.yaml
 ```
 
 ### Inspecting the output 
 ```
 $ kubectl logs -f deployment/eventrouter -n kube-system 
 ``` 
-
-Watch events roll through the system and hopefully stream into your ES cluster for mining, Hooray!
 
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"

@@ -67,7 +67,7 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |
-    logLevel: warn
+    logLevel: error
     logFormat: json
     metricsNamePrefix: event_exporter_
     route:
