@@ -2,9 +2,13 @@ name: pull-request
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+
 permissions:
   contents: read
   pull-requests: write
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}:pr-${{ github.event.number }}
 
 jobs:
   go-fmt:
@@ -74,5 +78,12 @@ jobs:
       with:
         context: .
         push: false
+        tags: ${{ env.IMAGE }}
         build-args: |
           VERSION=development
+    - uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ env.IMAGE }}
+        format: 'table'
+        vuln-type: 'os,library'
+        severity: 'CRITICAL,HIGH'
