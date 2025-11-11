@@ -2,6 +2,7 @@ name: pull-request
 on:
   pull_request:
     types: [opened, reopened, synchronize]
+
 permissions:
   contents: read
   pull-requests: write
@@ -83,4 +84,7 @@ jobs:
     - uses: aquasecurity/trivy-action@0.28.0
       with:
         image-ref: ${{ env.IMAGE }}
-
+        format: 'table'
+        exit-code: '1'
+        severity: 'CRITICAL,HIGH'
+    
