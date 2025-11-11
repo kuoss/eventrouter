@@ -6,6 +6,9 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  IMAGE: ghcr.io/${{ github.repository }}:pr-${{ github.event.number }}
+
 jobs:
   go-fmt:
     runs-on: ubuntu-latest
@@ -74,5 +77,10 @@ jobs:
       with:
         context: .
         push: false
+        tags: ${{ env.IMAGE }}
         build-args: |
           VERSION=development
+    - uses: aquasecurity/trivy-action@0.28.0
+      with:
+        image-ref: ${{ env.IMAGE }}
+
