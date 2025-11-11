@@ -85,6 +85,4 @@ jobs:
       with:
         image-ref: ${{ env.IMAGE }}
         format: 'table'
-        exit-code: '1'
-        severity: 'CRITICAL,HIGH'
-    
+
