@@ -20,7 +20,9 @@ limitations under the License.
 package config
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"time"
 
@@ -52,9 +54,17 @@ func Load() (kubernetes.Interface, error) {
 	viper.SetDefault("log-format", "json")
 	viper.SetDefault("log-level", "info")
 
+	// Every key above already has a default, so a config file is an optional
+	// override, not a requirement: a missing one just means every key keeps
+	// its default. A file that exists but fails to parse is a real mistake,
+	// though, and still fails startup.
 	err = viper.ReadInConfig()
-	if err != nil {
+	var notFound viper.ConfigFileNotFoundError
+	if err != nil && !errors.As(err, &notFound) {
 		return nil, fmt.Errorf("ReadInConfig err: %w", err)
+	}
+	if err != nil {
+		slog.Info("no config file found, using defaults and environment overrides")
 	}
 
 	err = viper.BindEnv("kubeconfig") // Allows the KUBECONFIG env var to override where the kubeconfig is

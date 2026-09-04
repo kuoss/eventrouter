@@ -22,7 +22,6 @@ RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v}
 # why the build needs no QEMU.
 FROM quay.io/prometheus/busybox:latest
 COPY --from=builder /app/eventrouter /app/eventrouter
-COPY docs/config.json /etc/eventrouter/config.json
 
 USER nobody
 
