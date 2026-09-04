@@ -11,9 +11,12 @@ import (
 // FileSink writes one JSON event per line to a local file, the way
 // StdoutSink does to stdout - but through a rotating writer
 // (gopkg.in/natefinch/lumberjack.v2), so the file doesn't grow without
-// bound. This is what a sidecar tailing eventrouter's stdout into
-// logrotate (see tests/eventrouter/eventrouter-with-sidecar.yaml) would
-// otherwise be needed for.
+// bound. Path needs a volume mounted under it to be worth using at all:
+// either to survive past the container's own lifetime, or just so a
+// different sidecar (a log shipper, say) can read the same file over a
+// volume they share - which also replaces the tee-to-logrotate sidecar
+// pattern in tests/eventrouter/eventrouter-with-sidecar.yaml, since this
+// does its own rotation.
 type FileSink struct {
 	logger *lumberjack.Logger
 }
