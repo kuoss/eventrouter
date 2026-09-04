@@ -58,7 +58,13 @@ func main() {
 		os.Exit(1)
 	}
 	slog.Info("starting eventrouter", "version", version)
-	sharedInformers := informers.NewSharedInformerFactory(clientset, config.ResyncInterval())
+	// No resync: eventrouter forwards each event once, as observed, rather
+	// than reconciling state, so there is nothing for a periodic resync to
+	// usefully redeliver - it would only re-emit every event still in the
+	// cache as a spurious "UPDATED" duplicate. The watch itself relists on
+	// its own if the connection drops, and the informer's initial List
+	// already covers catching up after a restart.
+	sharedInformers := informers.NewSharedInformerFactory(clientset, 0)
 	eventsInformer := sharedInformers.Core().V1().Events()
 
 	// TODO: Support locking for HA https://github.com/kubernetes/kubernetes/pull/42666

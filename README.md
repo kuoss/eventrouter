@@ -44,7 +44,6 @@ JSON) still fails startup; a missing one does not.
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
 | `sink`              | -            | `stdout`   | `stdout`, `http`, `s3`, `influxdb`                                   |
-| `resync-interval`   | -            | `30m`      | how often the shared informer resyncs                                |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
 | `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
 | `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |

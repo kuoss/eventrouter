@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/kuoss/eventrouter/internal/logging"
 	"github.com/spf13/viper"
@@ -49,7 +48,6 @@ func Load() (kubernetes.Interface, error) {
 	viper.AddConfigPath(".")
 	viper.SetDefault("kubeconfig", "")
 	viper.SetDefault("sink", "stdout")
-	viper.SetDefault("resync-interval", time.Minute*30)
 	viper.SetDefault("enable-prometheus", true)
 	viper.SetDefault("log-format", "json")
 	viper.SetDefault("log-level", "info")
@@ -107,12 +105,6 @@ func Load() (kubernetes.Interface, error) {
 		return nil, fmt.Errorf("NewForConfig err: %w", err)
 	}
 	return clientset, nil
-}
-
-// ResyncInterval is how often the shared informer resyncs, from the
-// "resync-interval" config key.
-func ResyncInterval() time.Duration {
-	return viper.GetDuration("resync-interval")
 }
 
 // PrometheusEnabled reports whether the "enable-prometheus" config key is
