@@ -58,13 +58,13 @@ fails startup; a missing one does not.
 > ConfigMap key renamed to `config.yaml`, with the content converted to YAML
 > (see [`config.example.yaml`][config-example]), as part of the upgrade.
 
-| config key         | env var      | default    | values                                                                |
-| ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
-| `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sinks`             | -            | `[{type: stdout}]` | a list, each entry a `type` plus its own settings             |
-| `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
-| `log.format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
-| `log.level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
+| config key          | env var      | default             | values                                                                |
+| -------------------- | ------------ | ------------------- | ---------------------------------------------------------------------|
+| `kubeconfig`         | `KUBECONFIG` | *(empty)*           | path to a kubeconfig file; empty uses the in-cluster service account |
+| `sinks`              | -            | `[{type: stdout}]`  | a list, each entry a `type` plus its own settings                    |
+| `enable-prometheus`  | -            | `true`              | exposes `/metrics` and the event counters                            |
+| `log.format`         | `LOG_FORMAT` | `json`              | `json`, `text`                                                       |
+| `log.level`          | `LOG_LEVEL`  | `info`              | `debug`, `info`, `warn`, `error`                                     |
 
 Each `sinks` entry's `type` (`stdout`, `http`, `s3sink`, `influxdb`,
 `filesink`) picks what the rest of that entry configures - see
@@ -75,9 +75,9 @@ endpoints, say, which one shared block could never express:
 ```yaml
 sinks:
   - type: http
-    url: "http://a"
+    url: http://a
   - type: http
-    url: "http://b"
+    url: http://b
 ```
 
 An explicit `sinks: []` means zero sinks - eventrouter still runs and counts
