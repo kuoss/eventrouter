@@ -1,7 +1,7 @@
 # build stage
 # Built on the runner's own platform and cross-compiled from there: the Go
 # toolchain does that far faster than emulating the target platform.
-FROM --platform=${BUILDPLATFORM} golang:1.25 AS builder
+FROM --platform=${BUILDPLATFORM} golang:1.26 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download -x

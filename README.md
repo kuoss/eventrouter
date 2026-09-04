@@ -47,8 +47,10 @@ file at all. To change one, mount a ConfigMap with a `config.yaml` at
 this, so `kubectl edit configmap eventrouter -n kube-system` (then restart the
 deployment to pick it up) is enough for most changes - or, for local runs,
 copy [`config.example.yaml`][config-example] to `config.yaml` next to the
-binary and edit that. A malformed file (present but not valid YAML) still
-fails startup; a missing one does not.
+binary and edit that; with no `--config` flag, both paths are tried in that
+order. A malformed file (present but not valid YAML) still fails startup, and
+so does a missing one *if* `--config` names it explicitly; left to the
+default search, a missing file does not.
 
 > **Upgrading from a `config.json` deployment:** versions before 0.6 read
 > `config.json`; this one reads `config.yaml` and does not fall back to the
@@ -58,13 +60,13 @@ fails startup; a missing one does not.
 > ConfigMap key renamed to `config.yaml`, with the content converted to YAML
 > (see [`config.example.yaml`][config-example]), as part of the upgrade.
 
-| config key          | env var      | default             | values                                                                |
-| -------------------- | ------------ | ------------------- | ---------------------------------------------------------------------|
-| `kubeconfig`         | `KUBECONFIG` | *(empty)*           | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sinks`              | -            | `[{type: stdout}]`  | a list, each entry a `type` plus its own settings                    |
-| `enable-prometheus`  | -            | `true`              | exposes `/metrics` and the event counters                            |
-| `log.format`         | `LOG_FORMAT` | `json`              | `json`, `text`                                                       |
-| `log.level`          | `LOG_LEVEL`  | `info`              | `debug`, `info`, `warn`, `error`                                     |
+| config key          | default             | description                                                                                 |
+| -------------------- | ------------------- | -------------------------------------------------------------------------------------------|
+| `kubeconfig`         | *(empty)*           | path to a kubeconfig file; empty uses the in-cluster service account (env: `KUBECONFIG`, only when this is empty) |
+| `sinks`              | `[{type: stdout}]`  | a list, each entry a `type` plus its own settings                                          |
+| `enable-prometheus`  | `true`              | exposes `/metrics` and the event counters                                                  |
+| `log.format`         | `json`              | `json`, `text`                                                                              |
+| `log.level`          | `info`              | `debug`, `info`, `warn`, `error`                                                            |
 
 Each `sinks` entry's `type` (`stdout`, `http`, `s3sink`, `influxdb`,
 `filesink`) picks what the rest of that entry configures - see
@@ -116,30 +118,34 @@ empty when the event names none - and `component`, the reporting controller.
 
 ## Logging
 
-Events are written to **stdout** by the stdout sink (one JSON object per line).
-The application's own logs are structured ([log/slog][slog]) and go to
-**stderr**, so the two streams never get mixed. `log.format`/`log.level`
-control the latter - see the [Configuration](#configuration) table above.
+### Event output
 
-Every sink writes each event as `{"verb": "ADDED"|"UPDATED", "event": <the
-Kubernetes Event>}` - `ADDED` the first time eventrouter sees it, `UPDATED` on
-a repeat (kubelet bumps `count`/`lastTimestamp` on the same object; an
-events.k8s.io/v1 reporter attaches a `series` instead - see
+Events are written to **stdout** by the stdout sink (one JSON object per
+line). Every sink writes each event as `{"verb": "ADDED"|"UPDATED", "event":
+<the Kubernetes Event>}` - `ADDED` the first time eventrouter sees it,
+`UPDATED` on a repeat (kubelet bumps `count`/`lastTimestamp` on the same
+object; an events.k8s.io/v1 reporter attaches a `series` instead - see
 [Event APIs](#event-apis)). There is no `old_event`/before-snapshot: a
 repeat's own fields already say what changed. See
 [`tests/sample/pod-log.ndjson`][sample-log] for a real ADDED/UPDATED pair from
 each API shape.
 
+### Application logs
+
+The application's own logs are structured and go to **stderr**, so they
+never get mixed with event output on stdout. `log.format`/`log.level`
+control them - see the [Configuration](#configuration) table above.
+
 ```
-$ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
+$ kubectl edit configmap eventrouter -n kube-system   # set log.level: debug
+$ kubectl rollout restart deployment/eventrouter -n kube-system
 ```
 
 > **Note:** the `glog` flags (`-v`, `-logtostderr`, `-log_dir`, ...) were removed
 > along with the `github.com/golang/glog` dependency. Passing them now makes the
-> binary exit with a flag parsing error - use `log.level`/`LOG_LEVEL` instead.
+> binary exit with a flag parsing error - use `log.level` instead.
 
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
-[slog]: https://pkg.go.dev/log/slog "log/slog"
 [deploy-manifest]: deploy/deploy.yaml "deployment manifest"
 [deploy-dir]: deploy/ "deploy/"
 [event-doc]: docs/event.md "core/v1 vs events.k8s.io/v1"

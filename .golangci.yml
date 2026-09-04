@@ -10,13 +10,18 @@ linters:
     - bodyclose
     - errorlint
     - gocyclo
+    - importas
     - misspell
     - unconvert
   settings:
-    gocyclo:
-      # ManufactureSink is the one outlier (18) - a flat switch over sink
-      # types. Anything above this should be split into smaller functions.
-      min-complexity: 20
+    importas:
+      # k8s.io/api/*/v1 packages all share the "v1" package name, so the
+      # alias is what keeps a file with more than one of them (or with
+      # events.k8s.io/v1) readable.
+      no-unaliased: true
+      alias:
+        - pkg: k8s.io/api/core/v1
+          alias: corev1
 
 issues:
   # Report every occurrence instead of the default 3 per message.

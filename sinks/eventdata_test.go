@@ -9,22 +9,21 @@ import (
 	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
+	corev1 "k8s.io/api/core/v1"
 )
 
-func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
+func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *corev1.Event {
 	if firstTime == nil {
-		firstTime = ptr.To(time.Now())
+		firstTime = new(time.Now())
 	}
 	if lastTime == nil {
-		lastTime = ptr.To(time.Now())
+		lastTime = new(time.Now())
 	}
 
 	return kubeeventtest.CoreAPIEvent(
 		kubeeventtest.WithName(name),
 		kubeeventtest.WithUID("12345"),
-		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithInvolvedObject(corev1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
 		kubeeventtest.WithReason(reason),
 		kubeeventtest.WithMessage("Successfully assigned test-pod to node-1"),
 		kubeeventtest.WithTimes(*firstTime, *lastTime),
@@ -52,7 +51,7 @@ func assertEqualIgnoreDatetime(t *testing.T, expected, actual string) {
 }
 
 func TestWriteRFC5424(t *testing.T) {
-	want := `514 <24>1 2024-03-15T12:34:56.123456789+09:00 node-1 kubelet - - - {"verb":"ADDED","event":{"metadata":{"name":"test-event","namespace":"default","uid":"12345","creationTimestamp":null},"involvedObject":{"kind":"Pod","uid":"pod12345"},"reason":"Scheduled","message":"Successfully assigned test-pod to node-1","source":{"component":"kubelet","host":"node-1"},"firstTimestamp":"2025-03-14T09:47:52Z","lastTimestamp":"2025-03-14T09:47:52Z","type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}}`
+	want := `489 <24>1 2024-03-15T12:34:56.123456789+09:00 node-1 kubelet - - - {"verb":"ADDED","event":{"metadata":{"name":"test-event","namespace":"default","uid":"12345"},"involvedObject":{"kind":"Pod","uid":"pod12345"},"reason":"Scheduled","message":"Successfully assigned test-pod to node-1","source":{"component":"kubelet","host":"node-1"},"firstTimestamp":"2025-03-14T09:47:52Z","lastTimestamp":"2025-03-14T09:47:52Z","type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}}`
 
 	lastTime, _ := time.Parse(time.RFC3339Nano, "2024-03-15T12:34:56.123456789+09:00")
 	event := createTestEvent("test-event", "Scheduled", nil, &lastTime)
@@ -68,7 +67,7 @@ func TestWriteRFC5424(t *testing.T) {
 }
 
 func TestWriteFlattenedJSON(t *testing.T) {
-	want := `{"event_eventTime":null,"event_firstTimestamp":"2000-01-01T00:00:00Z","event_involvedObject_kind":"Pod","event_involvedObject_uid":"pod12345","event_lastTimestamp":"2000-01-01T00:00:00Z","event_message":"Successfully assigned test-pod to node-1","event_metadata_creationTimestamp":null,"event_metadata_name":"test-event","event_metadata_namespace":"default","event_metadata_uid":"12345","event_reason":"Scheduled","event_reportingComponent":"","event_reportingInstance":"","event_source_component":"kubelet","event_source_host":"node-1","event_type":"Normal","verb":"ADDED"}`
+	want := `{"event_eventTime":null,"event_firstTimestamp":"2000-01-01T00:00:00Z","event_involvedObject_kind":"Pod","event_involvedObject_uid":"pod12345","event_lastTimestamp":"2000-01-01T00:00:00Z","event_message":"Successfully assigned test-pod to node-1","event_metadata_name":"test-event","event_metadata_namespace":"default","event_metadata_uid":"12345","event_reason":"Scheduled","event_reportingComponent":"","event_reportingInstance":"","event_source_component":"kubelet","event_source_host":"node-1","event_type":"Normal","verb":"ADDED"}`
 
 	event := createTestEvent("test-event", "Scheduled", nil, nil)
 	eventData := NewEventData(event, nil)
@@ -88,11 +87,11 @@ func TestWriteFlattenedJSON(t *testing.T) {
 // over core/v1 when its reporter wrote it through events.k8s.io/v1: no source
 // and no first/last timestamp, with eventTime and the reporting fields
 // carrying the information instead.
-func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *v1.Event {
+func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *corev1.Event {
 	return kubeeventtest.EventsAPIEvent(
 		kubeeventtest.WithName(name),
 		kubeeventtest.WithUID("12345"),
-		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithInvolvedObject(corev1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
 		kubeeventtest.WithReason(reason),
 		kubeeventtest.WithMessage("Successfully assigned default/test-pod to node-1"),
 		kubeeventtest.WithEventTime(eventTime),
@@ -108,7 +107,7 @@ func TestWriteRFC5424Header(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		event        *v1.Event
+		event        *corev1.Event
 		wantHostname string
 		wantAppName  string
 	}{

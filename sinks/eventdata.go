@@ -24,14 +24,14 @@ import (
 
 	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // EventData encodes an eventrouter event with a verb for whether it was just
 // created or is a repeat of one already seen.
 type EventData struct {
-	Verb  string    `json:"verb"`
-	Event *v1.Event `json:"event"`
+	Verb  string        `json:"verb"`
+	Event *corev1.Event `json:"event"`
 }
 
 // NewEventData constructs an EventData struct for eNew, setting the verb from
@@ -41,7 +41,7 @@ type EventData struct {
 // lastTimestamp or series) already say what changed, so carrying the whole
 // previous snapshot alongside it would roughly double every repeat's payload
 // to say very little more.
-func NewEventData(eNew *v1.Event, eOld *v1.Event) EventData {
+func NewEventData(eNew *corev1.Event, eOld *corev1.Event) EventData {
 	verb := "ADDED"
 	if eOld != nil {
 		verb = "UPDATED"

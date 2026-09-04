@@ -2,20 +2,22 @@ package sinks
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	v1 "k8s.io/api/core/v1"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type IUploader interface {
-	Upload(*s3manager.UploadInput, ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
+	UploadObject(context.Context, *transfermanager.UploadObjectInput, ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error)
 }
 
 /*
@@ -59,18 +61,12 @@ type S3Sink struct {
 
 // NewS3Sink is the factory method constructing a new S3Sink
 func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion string, s3SinkBucket string, s3SinkBucketDir string, s3SinkUploadInterval int, overflow bool, bufferSize int, outputFormat string) (*S3Sink, error) {
-	awsConfig := &aws.Config{
-		Region:      aws.String(s3SinkRegion),
-		Credentials: credentials.NewStaticCredentials(awsAccessKeyID, s3SinkSecretAccessKey, ""),
-	}
-
-	awsConfig = awsConfig.WithCredentialsChainVerboseErrors(true)
-	sess, err := session.NewSession(awsConfig)
+	awsConfig, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(s3SinkRegion), config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsAccessKeyID, s3SinkSecretAccessKey, "")))
 	if err != nil {
 		return nil, err
 	}
 
-	uploader := s3manager.NewUploader(sess)
+	uploader := transfermanager.New(s3.NewFromConfig(awsConfig))
 
 	s := &S3Sink{
 		uploader:       uploader,
@@ -90,7 +86,7 @@ func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion
 // UpdateEvents implements the EventSinkInterface. If overflow is set, this
 // never blocks: events beyond the channel's buffer are discarded. Otherwise
 // it blocks once the buffer is full, applying backpressure to the caller.
-func (s *S3Sink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
+func (s *S3Sink) UpdateEvents(eNew *corev1.Event, eOld *corev1.Event) {
 	evt := NewEventData(eNew, eOld)
 	if s.overflow {
 		select {
@@ -179,7 +175,7 @@ func (s *S3Sink) upload() {
 	now := time.Now()
 	key := s.getNewKey(now)
 
-	_, err := s.uploader.Upload(&s3manager.UploadInput{
+	_, err := s.uploader.UploadObject(context.Background(), &transfermanager.UploadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 		Body:   s.bodyBuf,
