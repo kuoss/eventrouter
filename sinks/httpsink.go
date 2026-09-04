@@ -138,7 +138,7 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 	}
 
 	resp, err := h.httpClient.R().
-		SetBody(h.bodyBuf.String()).
+		SetBody(h.bodyBuf.Bytes()).
 		Post(h.SinkURL)
 	if err != nil {
 		slog.Warn("could not post events to sink", "sinkURL", h.SinkURL, "err", err)

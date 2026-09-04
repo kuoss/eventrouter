@@ -41,6 +41,14 @@ copy [`config.example.yaml`][config-example] to `config.yaml` next to the
 binary and edit that. A malformed file (present but not valid YAML) still
 fails startup; a missing one does not.
 
+> **Upgrading from a `config.json` deployment:** versions before 0.7 read
+> `config.json`; this one reads `config.yaml` and does not fall back to the
+> old file. A ConfigMap still keyed `config.json` after upgrading produces no
+> error - every key silently reverts to its default (`sink: stdout` among
+> them) - so a deployment relying on a non-default sink needs its ConfigMap
+> key renamed to `config.yaml`, with the content converted to YAML (see
+> [`config.example.yaml`][config-example]), as part of the upgrade.
+
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
