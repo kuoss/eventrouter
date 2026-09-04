@@ -18,6 +18,7 @@ package sinks
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/spf13/viper"
@@ -53,19 +54,26 @@ func ManufactureSinks() []EventSinkInterface {
 // map[string]interface{}; the []map[string]interface{} case exists for
 // viper.Set (as tests, and config's own default, use).
 func sinkEntries() []map[string]interface{} {
-	switch raw := viper.Get("sinks").(type) {
+	rawValue := viper.Get("sinks")
+	if rawValue == nil {
+		return []map[string]interface{}{{"type": "stdout"}}
+	}
+
+	switch raw := rawValue.(type) {
 	case []interface{}:
 		entries := make([]map[string]interface{}, 0, len(raw))
-		for _, r := range raw {
+		for i, r := range raw {
 			if m, ok := r.(map[string]interface{}); ok {
 				entries = append(entries, m)
+			} else {
+				panic(fmt.Sprintf(`invalid sinks entry at index %d: expected an object`, i))
 			}
 		}
 		return entries
 	case []map[string]interface{}:
 		return raw
 	default:
-		return nil
+		panic(`invalid "sinks": expected a list of objects`)
 	}
 }
 

@@ -95,6 +95,28 @@ func TestManufactureSinks(t *testing.T) {
 	t.Run("NoSinksConfigured", func(t *testing.T) {
 		viper.Reset()
 		got := ManufactureSinks()
-		require.Empty(t, got)
+		require.Len(t, got, 1)
+		_, ok := got[0].(*StdoutSink)
+		require.True(t, ok, "Expected default StdoutSink")
+	})
+
+	t.Run("ExplicitEmptySinks", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{})
+		require.Empty(t, ManufactureSinks())
+	})
+
+	t.Run("InvalidSinksShape", func(t *testing.T) {
+		for _, raw := range []interface{}{"stdout", []interface{}{"stdout"}} {
+			viper.Reset()
+			viper.Set("sinks", raw)
+			require.Panics(t, func() { ManufactureSinks() })
+		}
+	})
+
+	t.Run("InvalidSinksEntry", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []interface{}{"stdout"})
+		require.Panics(t, func() { ManufactureSinks() })
 	})
 }
