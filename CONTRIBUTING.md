@@ -11,6 +11,11 @@ Pull requests run the same lint and tests; `govulncheck` and the image scan run
 on a schedule instead (`.github/workflows/security.yml`), because their result
 depends on the vulnerability database rather than on the change.
 
+Opening a pull request assigns it to you
+(`.github/workflows/auto-assign.yml`), so the pull request list shows who is
+carrying each one. An already assigned pull request is left alone, and bot
+authors such as Dependabot are skipped because they cannot be assignees.
+
 ## Releasing
 
 Open a pull request that changes `VERSION` to the version you want to release,
