@@ -27,6 +27,7 @@ import (
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
+	"github.com/kuoss/eventrouter/internal/kubeevent"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -149,16 +150,16 @@ func eventToPointWithFields(event *v1.Event) (*write.Point, error) {
 		"object_name":          event.InvolvedObject.Name,
 		"type":                 event.Type,
 		"kind":                 event.InvolvedObject.Kind,
-		"component":            event.Source.Component,
+		"component":            kubeevent.Component(event),
 		"reason":               event.Reason,
 		LabelNamespaceName.Key: event.Namespace,
-		LabelHostname.Key:      event.Source.Host,
+		LabelHostname.Key:      kubeevent.Host(event),
 	}
 	if event.InvolvedObject.Kind == "Pod" {
 		tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
 	}
 	fields := map[string]interface{}{}
-	ts := event.LastTimestamp.UTC()
+	ts := kubeevent.Timestamp(event).UTC()
 	return influxdb2.NewPoint("events", tags, fields, ts), nil
 }
 
@@ -175,13 +176,13 @@ func eventToPoint(event *v1.Event) (*write.Point, error) {
 		tags[LabelPodId.Key] = string(event.InvolvedObject.UID)
 		tags[LabelPodName.Key] = event.InvolvedObject.Name
 	}
-	tags[LabelHostname.Key] = event.Source.Host
+	tags[LabelHostname.Key] = kubeevent.Host(event)
 
 	fields := map[string]interface{}{
 		valueField: value,
 	}
 
-	ts := event.LastTimestamp.UTC()
+	ts := kubeevent.Timestamp(event).UTC()
 	point := influxdb2.NewPoint(eventMeasurementName, tags, fields, ts)
 	return point, nil
 }

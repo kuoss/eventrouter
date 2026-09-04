@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	v1 "k8s.io/api/core/v1"
 )
@@ -71,9 +72,9 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	// attempt at trying to clean them up here because hostnames and component
 	// names already adhere to this convention in practice.
 	msg := rfc5424.Message{
-		Timestamp: e.Event.LastTimestamp.Time,
-		Hostname:  e.Event.Source.Host,
-		AppName:   e.Event.Source.Component,
+		Timestamp: kubeevent.Timestamp(e.Event),
+		Hostname:  kubeevent.Host(e.Event),
+		AppName:   kubeevent.Component(e.Event),
 		Message:   string(eJSONBytes),
 	}
 

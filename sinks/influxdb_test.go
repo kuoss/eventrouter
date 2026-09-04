@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/stretchr/testify/require"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Mock server for InfluxDB
@@ -69,4 +71,55 @@ func TestServerConnectionError(t *testing.T) {
 	go func() {
 		sink.sendData([]*write.Point{point})
 	}()
+}
+
+func pointTags(point *write.Point) map[string]string {
+	tags := map[string]string{}
+	for _, tag := range point.TagList() {
+		tags[tag.Key] = tag.Value
+	}
+	return tags
+}
+
+// TestEventToPointTagsAndTime pins down the two fields that differ between the
+// event APIs: the component tag and the point timestamp. Reading lastTimestamp
+// off an events.k8s.io/v1 event would write the point at the start of the
+// epoch, and reading source.component would leave it unattributed.
+func TestEventToPointTagsAndTime(t *testing.T) {
+	tm := time.Date(2026, 9, 4, 6, 35, 20, 0, time.UTC)
+
+	testCases := []struct {
+		name          string
+		event         *v1.Event
+		wantComponent string
+		wantHostname  string
+	}{
+		{
+			name:          "core/v1 event",
+			event:         createTestEvent("test-event", "Started", &tm, &tm),
+			wantComponent: "kubelet",
+			wantHostname:  "node-1",
+		},
+		{
+			name:          "events.k8s.io/v1 event",
+			event:         createTestEventsAPIEvent("test-event", "Scheduled", tm),
+			wantComponent: "default-scheduler",
+			wantHostname:  "",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			withFields, err := eventToPointWithFields(tc.event)
+			require.NoError(t, err)
+			require.Equal(t, tm, withFields.Time())
+			tags := pointTags(withFields)
+			require.Equal(t, tc.wantComponent, tags["component"])
+			require.Equal(t, tc.wantHostname, tags[LabelHostname.Key])
+
+			point, err := eventToPoint(tc.event)
+			require.NoError(t, err)
+			require.Equal(t, tm, point.Time())
+			require.Equal(t, tc.wantHostname, pointTags(point)[LabelHostname.Key])
+		})
+	}
 }
