@@ -1,6 +1,7 @@
 package config
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -18,6 +19,24 @@ func TestLoad(t *testing.T) {
 	// does not exist - Load should read the file fine and then fail
 	// predictably once it tries to build a client from that path.
 	t.Chdir("testdata")
+
+	k8s, err := Load()
+	require.EqualError(t, err, "BuildConfigFromFlags err: stat /var/run/kubernetes/admin.kubeconfig: no such file or directory")
+	require.Nil(t, k8s)
+}
+
+func TestLoadWithEnvOverride(t *testing.T) {
+	viper.Reset()
+
+	// Resolve the fixture before Chdir, since a relative path would
+	// otherwise resolve against the directory Load searches from below.
+	fixture, err := filepath.Abs("testdata/config.yaml")
+	require.NoError(t, err)
+	t.Setenv("EVENTROUTER_CONFIG", fixture)
+
+	// An empty directory: only EVENTROUTER_CONFIG, not AddConfigPath("."),
+	// can be what finds the fixture here.
+	t.Chdir(t.TempDir())
 
 	k8s, err := Load()
 	require.EqualError(t, err, "BuildConfigFromFlags err: stat /var/run/kubernetes/admin.kubeconfig: no such file or directory")

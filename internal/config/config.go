@@ -47,6 +47,12 @@ func Load() (kubernetes.Interface, error) {
 	viper.SetConfigName("config")
 	viper.AddConfigPath("/etc/eventrouter/")
 	viper.AddConfigPath(".")
+	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env
+	// var, overriding the search paths above. Must happen before
+	// ReadInConfig, which is the only call that actually reads it.
+	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
+		viper.SetConfigFile(forceCfg)
+	}
 	viper.SetDefault("kubeconfig", "")
 	viper.SetDefault("sink", "stdout")
 	viper.SetDefault("enable-prometheus", true)
@@ -83,10 +89,6 @@ func Load() (kubernetes.Interface, error) {
 	}
 	logging.Setup(viper.GetString("log-format"), viper.GetString("log-level"))
 
-	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env var
-	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
-		viper.SetConfigFile(forceCfg)
-	}
 	kubeconfig := viper.GetString("kubeconfig")
 	if len(kubeconfig) > 0 {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)

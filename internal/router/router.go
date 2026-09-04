@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kuoss/eventrouter/internal/config"
 	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/viper"
 
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -81,7 +81,7 @@ type EventRouter struct {
 
 // NewEventRouter will create a new event router using the input params
 func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformers.EventInformer) *EventRouter {
-	if viper.GetBool("enable-prometheus") {
+	if config.PrometheusEnabled() {
 		prometheus.MustRegister(kubernetesWarningEventCounterVec)
 		prometheus.MustRegister(kubernetesNormalEventCounterVec)
 		prometheus.MustRegister(kubernetesInfoEventCounterVec)
@@ -137,7 +137,7 @@ func (er *EventRouter) updateEvent(objOld interface{}, objNew interface{}) {
 
 // prometheusEvent is called when an event is added or updated
 func prometheusEvent(event *v1.Event) {
-	if !viper.GetBool("enable-prometheus") {
+	if !config.PrometheusEnabled() {
 		return
 	}
 

@@ -48,9 +48,9 @@ cluster itself.
   image into kind and applies [`tests/eventrouter/eventrouter-with-sidecar.yaml`][sidecar-manifest],
   then tails the pod's logs. Use it to confirm a change works against a real
   API server, not just the fake clientset unit tests use.
-- [`tests/eventrouter/`][eventrouter-manifests] also has a ConfigMap-mounting
-  variant of the deployment - see [`deploy/deploy.yaml`][deploy-manifest] at
-  the repo root, which now ships that pattern by default.
+- The ConfigMap-mounting variant of the deployment used to be a separate
+  manifest under `tests/eventrouter/`; [`deploy/deploy.yaml`][deploy-manifest]
+  at the repo root now ships that pattern by default, so it moved there.
 - [`tests/eventxxx/`][eventxxx] runs no eventrouter code at all - it is a
   small sandbox (own `Makefile`) for deploying a different tool
   (Fluent Bit's `kubernetes_events` input, or [kubernetes-event-exporter][event-exporter])
@@ -61,7 +61,6 @@ cluster itself.
 [sample-gen]: ../tests/sample/gen/main.go "sample generator"
 [kind]: https://kind.sigs.k8s.io/ "kind"
 [sidecar-manifest]: ../tests/eventrouter/eventrouter-with-sidecar.yaml "kind smoke-test manifest"
-[eventrouter-manifests]: ../tests/eventrouter/ "tests/eventrouter"
 [deploy-manifest]: ../deploy/deploy.yaml "deployment manifest"
 [eventxxx]: ../tests/eventxxx/ "tests/eventxxx"
 [event-exporter]: https://github.com/opsgenie/kubernetes-event-exporter "kubernetes-event-exporter"

@@ -129,6 +129,7 @@ func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	}
 	if err != nil {
 		slog.Warn("failed to convert event to point", "err", err)
+		return
 	}
 
 	point.AddTag("cluster_name", sink.config.ClusterName)
