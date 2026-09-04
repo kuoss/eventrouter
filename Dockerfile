@@ -7,8 +7,11 @@ COPY go.mod go.sum ./
 RUN go mod download -x
 
 COPY . .
-ARG TARGETOS TARGETARCH
-RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /app/eventrouter
+# GOARM only matters for 32-bit arm (v7: a Pi running a 32-bit OS); every
+# other GOARCH ignores it, so it can be set unconditionally.
+ARG TARGETOS TARGETARCH TARGETVARIANT
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
+    go build -ldflags="-w -s" -o /app/eventrouter
 
 # final stage
 # A multi-arch manifest, so buildx pulls the variant matching the target
