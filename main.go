@@ -36,8 +36,15 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 // addr tells us what address to have the Prometheus metrics listen on.
 var addr = flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
+
+// showVersion prints the version and exits, which also makes the image
+// runnable as a smoke test.
+var showVersion = flag.Bool("version", false, "Print the version and exit.")
 
 // setup a signal hander to gracefully exit
 func sigHandler() <-chan struct{} {
@@ -62,8 +69,6 @@ func sigHandler() <-chan struct{} {
 func loadConfig() (kubernetes.Interface, error) {
 	var config *rest.Config
 	var err error
-
-	flag.Parse()
 
 	// leverages a file|(ConfigMap)
 	// to be located at /etc/eventrouter/config
@@ -129,11 +134,18 @@ func loadConfig() (kubernetes.Interface, error) {
 func main() {
 	var wg sync.WaitGroup
 
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
+
 	clientset, err := loadConfig()
 	if err != nil {
 		slog.Error("loadConfig failed", "err", err)
 		os.Exit(1)
 	}
+	slog.Info("starting eventrouter", "version", version)
 	sharedInformers := informers.NewSharedInformerFactory(clientset, viper.GetDuration("resync-interval"))
 	eventsInformer := sharedInformers.Core().V1().Events()
 

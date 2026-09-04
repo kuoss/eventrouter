@@ -10,8 +10,11 @@ COPY . .
 # GOARM only matters for 32-bit arm (v7: a Pi running a 32-bit OS); every
 # other GOARCH ignores it, so it can be set unconditionally.
 ARG TARGETOS TARGETARCH TARGETVARIANT
+# The release workflow passes the version from the VERSION file; a plain
+# docker build stays "dev".
+ARG VERSION=dev
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} GOARM=${TARGETVARIANT#v} \
-    go build -ldflags="-w -s" -o /app/eventrouter
+    go build -ldflags="-w -s -X main.version=${VERSION}" -o /app/eventrouter
 
 # final stage
 # A multi-arch manifest, so buildx pulls the variant matching the target

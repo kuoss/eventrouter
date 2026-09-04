@@ -5,8 +5,11 @@ SHELL       := /usr/bin/env bash
 
 PROJECT_NAME := eventrouter
 CLUSTER_NAME := kind1
-VERSION      := latest
-IMG          := ghcr.io/kuoss/$(PROJECT_NAME):$(VERSION)
+# The release version, and what a local image gets tagged with. Changing
+# VERSION and merging it is what cuts a release - see CONTRIBUTING.md.
+VERSION      := $(shell cat VERSION)
+IMAGE_TAG    ?= latest
+IMG          := ghcr.io/kuoss/$(PROJECT_NAME):$(IMAGE_TAG)
 MANIFEST     := tests/eventrouter/eventrouter-with-sidecar.yaml
 
 # Tool versions - keep GOLANGCI_LINT_VERSION in sync with
@@ -74,7 +77,7 @@ vulncheck: $(GOVULNCHECK) ## Report known vulnerabilities reachable from this co
 
 .PHONY: docker-build
 docker-build: ## Build the container image
-	docker build -t $(IMG) .
+	docker build --build-arg VERSION=$(VERSION) -t $(IMG) .
 
 .PHONY: clean
 clean: ## Remove build artifacts and downloaded tools
@@ -111,8 +114,8 @@ kind-delete: ## Delete the kind cluster
 kind-deploy: ## Load the image into kind and (re)deploy eventrouter
 	docker pull $(IMG)
 	kind load docker-image $(IMG) --name $(CLUSTER_NAME)
-	sed 's|:latest|:$(VERSION)|g' $(MANIFEST) | grep image:
-	sed 's|:latest|:$(VERSION)|g' $(MANIFEST) | kubectl apply -f -
+	sed 's|:latest|:$(IMAGE_TAG)|g' $(MANIFEST) | grep image:
+	sed 's|:latest|:$(IMAGE_TAG)|g' $(MANIFEST) | kubectl apply -f -
 	kubectl -n kube-system get pod -l app=eventrouter
 	kubectl -n kube-system rollout restart deploy -l app=eventrouter
 	kubectl -n kube-system logs -l app=eventrouter -f
