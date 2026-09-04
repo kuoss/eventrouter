@@ -56,8 +56,8 @@ func Load() (kubernetes.Interface, error) {
 	viper.SetDefault("kubeconfig", "")
 	viper.SetDefault("sink", "stdout")
 	viper.SetDefault("enable-prometheus", true)
-	viper.SetDefault("log-format", "json")
-	viper.SetDefault("log-level", "info")
+	viper.SetDefault("log.format", "json")
+	viper.SetDefault("log.level", "info")
 
 	// Every key above already has a default, so a config file is an optional
 	// override, not a requirement: a missing one just means every key keeps
@@ -79,15 +79,15 @@ func Load() (kubernetes.Interface, error) {
 
 	// Allows LOG_FORMAT/LOG_LEVEL to override the config file, so verbosity can
 	// be changed without editing the ConfigMap.
-	err = viper.BindEnv("log-format", "LOG_FORMAT")
+	err = viper.BindEnv("log.format", "LOG_FORMAT")
 	if err != nil {
 		return nil, fmt.Errorf("BindEnv err: %w", err)
 	}
-	err = viper.BindEnv("log-level", "LOG_LEVEL")
+	err = viper.BindEnv("log.level", "LOG_LEVEL")
 	if err != nil {
 		return nil, fmt.Errorf("BindEnv err: %w", err)
 	}
-	logging.Setup(viper.GetString("log-format"), viper.GetString("log-level"))
+	logging.Setup(viper.GetString("log.format"), viper.GetString("log.level"))
 
 	kubeconfig := viper.GetString("kubeconfig")
 	if len(kubeconfig) > 0 {

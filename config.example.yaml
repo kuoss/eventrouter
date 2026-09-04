@@ -3,10 +3,12 @@
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
 kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # stdout, http, s3sink, influxdb, filesink - or a list to use more than one at once
+sink: stdout # stdout, http, s3sink, influxdb, filesink
 enable-prometheus: true # exposes /metrics
-log-format: json # json, text (env: LOG_FORMAT)
-log-level: info # debug, info, warn, error (env: LOG_LEVEL)
+
+log:
+  format: json # json, text (env: LOG_FORMAT)
+  level: info # debug, info, warn, error (env: LOG_LEVEL)
 
 # stdout (the default) takes no settings. Uncomment the block matching
 # `sink` above for any other sink and fill it in.
@@ -50,3 +52,13 @@ log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 #   maxBackups: 100 # rotated files to keep (0 = unlimited)
 #   maxAge: 366 # days to keep rotated files (0 = unlimited)
 #   compress: true # gzip rotated files
+
+# For more than one sink - including more than one of the same type, like two
+# HTTP endpoints - use "sinks" instead (or alongside "sink"): a list, each
+# entry a "type" plus that sink's own settings inline. Unlike the blocks
+# above, these settings are never shared between entries.
+# sinks:
+#   - type: http
+#     url: "http://a"
+#   - type: http
+#     url: "http://b"

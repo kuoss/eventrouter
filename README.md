@@ -61,16 +61,24 @@ fails startup; a missing one does not.
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, `filesink`, or a list of these |
+| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, `filesink`                   |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
-| `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
-| `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
+| `log.format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
+| `log.level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
 
-Each sink reads its own settings from a nested block of the same name as the
-`sink` value (e.g. `sink: http` reads the `http:` block) - see
-[`config.example.yaml`][config-example] for the full, commented list per
-sink. Give `sink` a list (`sink: [stdout, http]`) to use more than one at
-once - every event goes to each of them.
+`sink` names a single sink, reading its settings (if it has any) from a
+nested block of the same name (e.g. `sink: http` reads the `http:` block) -
+see [`config.example.yaml`][config-example] for the full, commented list per
+sink. For more than one sink - including more than one of the same type,
+like two HTTP endpoints - use `sinks` instead (or alongside `sink`): a list,
+each entry a `type` plus that sink's own settings inline:
+```yaml
+sinks:
+  - type: http
+    url: "http://a"
+  - type: http
+    url: "http://b"
+```
 
 ## Event APIs
 
@@ -101,7 +109,7 @@ empty when the event names none - and `component`, the reporting controller.
 
 Events are written to **stdout** by the stdout sink (one JSON object per line).
 The application's own logs are structured ([log/slog][slog]) and go to
-**stderr**, so the two streams never get mixed. `log-format`/`log-level`
+**stderr**, so the two streams never get mixed. `log.format`/`log.level`
 control the latter - see the [Configuration](#configuration) table above.
 
 Every sink writes each event as `{"verb": "ADDED"|"UPDATED", "event": <the
@@ -119,7 +127,7 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 
 > **Note:** the `glog` flags (`-v`, `-logtostderr`, `-log_dir`, ...) were removed
 > along with the `github.com/golang/glog` dependency. Passing them now makes the
-> binary exit with a flag parsing error - use `log-level`/`LOG_LEVEL` instead.
+> binary exit with a flag parsing error - use `log.level`/`LOG_LEVEL` instead.
 
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
 [slog]: https://pkg.go.dev/log/slog "log/slog"

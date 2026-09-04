@@ -10,6 +10,7 @@ import (
 
 func TestManufactureSinks(t *testing.T) {
 	t.Run("StdoutSink", func(t *testing.T) {
+		viper.Reset()
 		viper.Set("sink", "stdout")
 		got := ManufactureSinks()
 		require.Len(t, got, 1)
@@ -18,6 +19,7 @@ func TestManufactureSinks(t *testing.T) {
 	})
 
 	t.Run("HTTPSink", func(t *testing.T) {
+		viper.Reset()
 		viper.Set("sink", "http")
 		viper.Set("http.url", "http://localhost")
 		viper.Set("http.bufferSize", 1500)
@@ -32,6 +34,7 @@ func TestManufactureSinks(t *testing.T) {
 	})
 
 	t.Run("FileSink", func(t *testing.T) {
+		viper.Reset()
 		viper.Set("sink", "filesink")
 		viper.Set("filesink.path", filepath.Join(t.TempDir(), "events.log"))
 
@@ -41,19 +44,57 @@ func TestManufactureSinks(t *testing.T) {
 		require.True(t, ok, "Expected FileSink")
 	})
 
-	t.Run("MultipleSinks", func(t *testing.T) {
-		viper.Set("sink", []string{"stdout", "http"})
-		viper.Set("http.url", "http://localhost")
+	t.Run("SinksList", func(t *testing.T) {
+		viper.Reset()
+		// "sinks" is a list of {type, ...settings}, each entry's settings
+		// inline rather than shared - this is what lets two entries name the
+		// same type with different settings, unlike "sink".
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "http", "url": "http://a"},
+			{"type": "http", "url": "http://b"},
+			{"type": "stdout"},
+		})
+
+		got := ManufactureSinks()
+		require.Len(t, got, 3)
+		first, ok := got[0].(*HTTPSink)
+		require.True(t, ok, "Expected HTTPSink first")
+		require.Equal(t, "http://a", first.SinkURL)
+		second, ok := got[1].(*HTTPSink)
+		require.True(t, ok, "Expected HTTPSink second")
+		require.Equal(t, "http://b", second.SinkURL)
+		_, ok = got[2].(*StdoutSink)
+		require.True(t, ok, "Expected StdoutSink third")
+	})
+
+	t.Run("SinkAndSinksTogether", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sink", "stdout")
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "http", "url": "http://a"},
+		})
 
 		got := ManufactureSinks()
 		require.Len(t, got, 2)
 		_, ok := got[0].(*StdoutSink)
-		require.True(t, ok, "Expected StdoutSink first")
+		require.True(t, ok, "Expected StdoutSink from \"sink\" first")
 		_, ok = got[1].(*HTTPSink)
-		require.True(t, ok, "Expected HTTPSink second")
+		require.True(t, ok, "Expected HTTPSink from \"sinks\" second")
+	})
+
+	t.Run("SinksEntryMissingType", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{
+			{"url": "http://a"},
+		})
+
+		require.PanicsWithValue(t, `sinks entry missing required "type"`, func() {
+			ManufactureSinks()
+		})
 	})
 
 	t.Run("InvalidSink", func(t *testing.T) {
+		viper.Reset()
 		viper.Set("sink", "invalid")
 
 		defer func() {
