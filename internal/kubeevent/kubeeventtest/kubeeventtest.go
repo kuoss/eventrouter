@@ -83,6 +83,12 @@ func WithEventTime(t time.Time) Option {
 	return func(e *corev1.Event) { e.EventTime = metav1.MicroTime{Time: t} }
 }
 
+// WithSeries sets an events.k8s.io/v1 event's series, the count/timestamp a
+// repeated event carries in place of core/v1's plain Count/lastTimestamp.
+func WithSeries(series *corev1.EventSeries) Option {
+	return func(e *corev1.Event) { e.Series = series }
+}
+
 // CoreAPIEvent returns an event shaped the way a core/v1 reporter - kubelet,
 // for one - writes it: source and both timestamps are set, and none of the
 // reporting fields are.
