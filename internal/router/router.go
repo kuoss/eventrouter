@@ -14,15 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package router watches the Kubernetes event stream and hands each event to
+// the Prometheus counters and the configured sink.
+package router
 
 import (
 	"fmt"
 	"log/slog"
 
+	"github.com/kuoss/eventrouter/internal/config"
+	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/spf13/viper"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -32,48 +36,36 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// eventCounterLabels are the labels every event counter carries. "source" is
+// the reporting node and is empty when the event does not name one; "component"
+// is the reporting controller.
+var eventCounterLabels = []string{
+	"involved_object_kind",
+	"involved_object_name",
+	"involved_object_namespace",
+	"reason",
+	"source",
+	"component",
+}
+
 var (
-	kubernetesWarningEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "eventrouter_warnings_total",
-		Help: "Total number of warning events in the kubernetes cluster",
-	}, []string{
-		"involved_object_kind",
-		"involved_object_name",
-		"involved_object_namespace",
-		"reason",
-		"source",
-	})
-	kubernetesNormalEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "eventrouter_normal_total",
-		Help: "Total number of normal events in the kubernetes cluster",
-	}, []string{
-		"involved_object_kind",
-		"involved_object_name",
-		"involved_object_namespace",
-		"reason",
-		"source",
-	})
-	kubernetesInfoEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "eventrouter_info_total",
-		Help: "Total number of info events in the kubernetes cluster",
-	}, []string{
-		"involved_object_kind",
-		"involved_object_name",
-		"involved_object_namespace",
-		"reason",
-		"source",
-	})
-	kubernetesUnknownEventCounterVec = prometheus.NewCounterVec(prometheus.CounterOpts{
-		Name: "eventrouter_unknown_total",
-		Help: "Total number of events of unknown type in the kubernetes cluster",
-	}, []string{
-		"involved_object_kind",
-		"involved_object_name",
-		"involved_object_namespace",
-		"reason",
-		"source",
-	})
+	kubernetesWarningEventCounterVec = newEventCounterVec(
+		"eventrouter_warnings_total", "Total number of warning events in the kubernetes cluster")
+	kubernetesNormalEventCounterVec = newEventCounterVec(
+		"eventrouter_normal_total", "Total number of normal events in the kubernetes cluster")
+	kubernetesInfoEventCounterVec = newEventCounterVec(
+		"eventrouter_info_total", "Total number of info events in the kubernetes cluster")
+	kubernetesUnknownEventCounterVec = newEventCounterVec(
+		"eventrouter_unknown_total", "Total number of events of unknown type in the kubernetes cluster")
 )
+
+// newEventCounterVec registers the vec via promauto, so registration happens
+// from a package var initializer - which Go guarantees runs exactly once -
+// rather than from NewEventRouter, which could in principle run more than
+// once per process.
+func newEventCounterVec(name, help string) *prometheus.CounterVec {
+	return promauto.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, eventCounterLabels)
+}
 
 // EventRouter is responsible for maintaining a stream of kubernetes
 // system Events and pushing them to another channel for storage
@@ -88,19 +80,13 @@ type EventRouter struct {
 	eListerSynched cache.InformerSynced
 
 	// event sink
-	// TODO: Determine if we want to support multiple sinks.
+	// TODO: support multiple sinks at once? ManufactureSink would need to
+	// return a slice.
 	eSink sinks.EventSinkInterface
 }
 
 // NewEventRouter will create a new event router using the input params
 func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformers.EventInformer) *EventRouter {
-	if viper.GetBool("enable-prometheus") {
-		prometheus.MustRegister(kubernetesWarningEventCounterVec)
-		prometheus.MustRegister(kubernetesNormalEventCounterVec)
-		prometheus.MustRegister(kubernetesInfoEventCounterVec)
-		prometheus.MustRegister(kubernetesUnknownEventCounterVec)
-	}
-
 	er := &EventRouter{
 		kubeClient: kubeClient,
 		eSink:      sinks.ManufactureSink(),
@@ -150,53 +136,37 @@ func (er *EventRouter) updateEvent(objOld interface{}, objNew interface{}) {
 
 // prometheusEvent is called when an event is added or updated
 func prometheusEvent(event *v1.Event) {
-	if !viper.GetBool("enable-prometheus") {
+	if !config.PrometheusEnabled() {
 		return
 	}
-	var counter prometheus.Counter
-	var err error
 
+	var counterVec *prometheus.CounterVec
 	switch event.Type {
 	case "Normal":
-		counter, err = kubernetesNormalEventCounterVec.GetMetricWithLabelValues(
-			event.InvolvedObject.Kind,
-			event.InvolvedObject.Name,
-			event.InvolvedObject.Namespace,
-			event.Reason,
-			event.Source.Host,
-		)
+		counterVec = kubernetesNormalEventCounterVec
 	case "Warning":
-		counter, err = kubernetesWarningEventCounterVec.GetMetricWithLabelValues(
-			event.InvolvedObject.Kind,
-			event.InvolvedObject.Name,
-			event.InvolvedObject.Namespace,
-			event.Reason,
-			event.Source.Host,
-		)
+		counterVec = kubernetesWarningEventCounterVec
 	case "Info":
-		counter, err = kubernetesInfoEventCounterVec.GetMetricWithLabelValues(
-			event.InvolvedObject.Kind,
-			event.InvolvedObject.Name,
-			event.InvolvedObject.Namespace,
-			event.Reason,
-			event.Source.Host,
-		)
+		counterVec = kubernetesInfoEventCounterVec
 	default:
-		counter, err = kubernetesUnknownEventCounterVec.GetMetricWithLabelValues(
-			event.InvolvedObject.Kind,
-			event.InvolvedObject.Name,
-			event.InvolvedObject.Namespace,
-			event.Reason,
-			event.Source.Host,
-		)
+		counterVec = kubernetesUnknownEventCounterVec
 	}
 
+	// Read through kubeevent rather than off the event: an event written
+	// through events.k8s.io/v1 carries no source at all.
+	counter, err := counterVec.GetMetricWithLabelValues(
+		event.InvolvedObject.Kind,
+		event.InvolvedObject.Name,
+		event.InvolvedObject.Namespace,
+		event.Reason,
+		kubeevent.Host(event),
+		kubeevent.Component(event),
+	)
 	if err != nil {
-		// Not sure this is the right place to log this error?
 		slog.Warn("could not get event counter", "err", err)
-	} else {
-		counter.Add(1)
+		return
 	}
+	counter.Add(1)
 }
 
 // deleteEvent should only occur when the system garbage collects events via TTL expiration
@@ -209,7 +179,15 @@ func (er *EventRouter) deleteEvent(obj interface{}) {
 	slog.Debug("event deleted from the system", "event", e)
 }
 
+// toEventPointer extracts the *v1.Event from a raw informer object. When the
+// informer misses a delete (a disconnect, for one) it hands DeleteFunc a
+// cache.DeletedFinalStateUnknown holding only the last object it knew about,
+// instead of the object itself; unwrap that first; the way client-go's own
+// controllers do, so a recoverable delete is not reported as an error.
 func toEventPointer(obj interface{}) (*v1.Event, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
 	e, ok := obj.(*v1.Event)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)

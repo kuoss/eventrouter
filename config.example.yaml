@@ -1,0 +1,44 @@
+# eventrouter configuration reference. Every key already has the default
+# shown, so this whole file is optional. Copy to config.yaml and edit, or
+# mount just what you need as a ConfigMap - see deploy/deploy.yaml.
+
+kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
+sink: stdout # stdout, http, s3sink, influxdb
+enable-prometheus: true # exposes /metrics
+log-format: json # json, text (env: LOG_FORMAT)
+log-level: info # debug, info, warn, error (env: LOG_LEVEL)
+
+# stdout (the default) takes no settings. Uncomment the block matching
+# `sink` above for any other sink and fill it in.
+
+# --- sink: http --- POSTs RFC5424-framed events to an HTTP endpoint
+# http:
+#   url: "" # required
+#   bufferSize: 1500 # events buffered before dropping (discardMessages: true) or blocking
+#   discardMessages: true
+
+# --- sink: s3sink --- batches events and uploads them to an S3 bucket
+# s3sink:
+#   accessKeyId: ""
+#   secretAccessKey: ""
+#   region: ""
+#   bucket: ""
+#   bucketDir: ""
+#   outputFormat: rfc5424 # rfc5424, flatjson
+#   bufferSize: 1500
+#   discardMessages: true
+#   uploadInterval: 120 # seconds between uploads
+
+# --- sink: influxdb ---
+# influxdb:
+#   host: ""
+#   username: ""
+#   password: ""
+#   name: k8s
+#   secure: false
+#   withFields: false
+#   insecureSsl: false
+#   retentionPolicy: "0"
+#   clusterName: default
+#   disableCounterMetrics: false
+#   concurrency: 1

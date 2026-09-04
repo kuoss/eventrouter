@@ -18,11 +18,9 @@ package sinks
 
 import (
 	"bytes"
-	"fmt"
 	"log/slog"
 	"net/http"
 
-	"github.com/eapache/channels"
 	"github.com/go-resty/resty/v2"
 	v1 "k8s.io/api/core/v1"
 )
@@ -50,7 +48,8 @@ containing the kubernetes v1.Event.
 type HTTPSink struct {
 	SinkURL string
 
-	eventCh    channels.Channel
+	eventCh    chan EventData
+	overflow   bool
 	httpClient *resty.Client
 	bodyBuf    *bytes.Buffer
 }
@@ -58,13 +57,9 @@ type HTTPSink struct {
 // NewHTTPSink constructs a new HTTPSink given a sink URL and buffer size
 func NewHTTPSink(sinkURL string, overflow bool, bufferSize int) *HTTPSink {
 	h := &HTTPSink{
-		SinkURL: sinkURL,
-	}
-
-	if overflow {
-		h.eventCh = channels.NewOverflowingChannel(channels.BufferCap(bufferSize))
-	} else {
-		h.eventCh = channels.NewNativeChannel(channels.BufferCap(bufferSize))
+		SinkURL:  sinkURL,
+		eventCh:  make(chan EventData, bufferSize),
+		overflow: overflow,
 	}
 
 	h.httpClient = resty.New().
@@ -81,12 +76,19 @@ func NewHTTPSink(sinkURL string, overflow bool, bufferSize int) *HTTPSink {
 	return h
 }
 
-// UpdateEvents implements the EventSinkInterface. It really just writes the
-// event data to the event OverflowingChannel, which should never block.
-// Messages that are buffered beyond the bufferSize specified for this HTTPSink
-// are discarded.
+// UpdateEvents implements the EventSinkInterface. If overflow is set, this
+// never blocks: events beyond the channel's buffer are discarded. Otherwise
+// it blocks once the buffer is full, applying backpressure to the caller.
 func (h *HTTPSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
-	h.eventCh.In() <- NewEventData(eNew, eOld)
+	evt := NewEventData(eNew, eOld)
+	if h.overflow {
+		select {
+		case h.eventCh <- evt:
+		default:
+		}
+		return
+	}
+	h.eventCh <- evt
 }
 
 // Run sits in a loop, waiting for data to come in through h.eventCh,
@@ -97,27 +99,15 @@ func (h *HTTPSink) Run(stopCh <-chan bool) {
 loop:
 	for {
 		select {
-		case e := <-h.eventCh.Out():
-			var evt EventData
-			var ok bool
-			if evt, ok = e.(EventData); !ok {
-				slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
-				continue loop
-			}
-
+		case evt := <-h.eventCh:
 			// Start with just this event...
 			arr := []EventData{evt}
 
 			// Consume all buffered events into an array, in case more have been written
 			// since we last forwarded them
-			numEvents := h.eventCh.Len()
+			numEvents := len(h.eventCh)
 			for i := 0; i < numEvents; i++ {
-				e := <-h.eventCh.Out()
-				if evt, ok = e.(EventData); ok {
-					arr = append(arr, evt)
-				} else {
-					slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
-				}
+				arr = append(arr, <-h.eventCh)
 			}
 
 			h.drainEvents(arr)
@@ -148,7 +138,7 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 	}
 
 	resp, err := h.httpClient.R().
-		SetBody(h.bodyBuf.String()).
+		SetBody(h.bodyBuf.Bytes()).
 		Post(h.SinkURL)
 	if err != nil {
 		slog.Warn("could not post events to sink", "sinkURL", h.SinkURL, "err", err)

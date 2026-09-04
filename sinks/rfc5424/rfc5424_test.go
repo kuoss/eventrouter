@@ -32,3 +32,23 @@ func TestNewFromBytes(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
+
+func TestBytesWithoutHostname(t *testing.T) {
+	// An event written through events.k8s.io/v1 names no host, so the
+	// hostname has to go out as the NILVALUE to keep the header parseable.
+	want := "81 <24>1 2024-03-15T12:34:56.123456789+09:00 - default-scheduler - - - Hello, world!"
+
+	timestamp, _ := time.Parse(time.RFC3339Nano, "2024-03-15T12:34:56.123456789+09:00")
+	msg := Message{
+		Timestamp: timestamp,
+		AppName:   "default-scheduler",
+		Message:   "Hello, world!",
+	}
+
+	got := msg.Bytes()
+	require.Equal(t, want, string(got))
+
+	parsed, err := NewFromBytes(got)
+	require.NoError(t, err)
+	require.Equal(t, &msg, parsed)
+}

@@ -54,11 +54,11 @@ spec:
           /app/eventrouter | tee -a /logs/event.log
         resources:
           limits:
-            memory: "128Mi"
-            cpu: "500m"
+            memory: "64Mi"
+            cpu: "100m"
           requests:
-            memory: "128Mi"
-            cpu: "500m"
+            memory: "64Mi"
+            cpu: "100m"
         volumeMounts:
         - mountPath: /logs
           name: vol-logs

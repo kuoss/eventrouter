@@ -11,6 +11,10 @@ Pull requests run the same lint and tests; `govulncheck` and the image scan run
 on a schedule instead (`.github/workflows/security.yml`), because their result
 depends on the vulnerability database rather than on the change.
 
+See [`docs/testing.md`](docs/testing.md) for the shared test fixtures, the
+checked-in sample output, and the manual kind-cluster tests `make checks`
+does not run.
+
 Opening a pull request assigns it to you
 (`.github/workflows/auto-assign.yml`), so the pull request list shows who is
 carrying each one. An already assigned pull request is left alone, and bot

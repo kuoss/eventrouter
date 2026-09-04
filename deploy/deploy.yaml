@@ -34,6 +34,8 @@ metadata:
   labels:
     app: eventrouter
 spec:
+  # No leader election (see main.go's TODO) - raising this duplicates
+  # every event instead of adding capacity.
   replicas: 1
   selector:
     matchLabels:
@@ -47,3 +49,31 @@ spec:
       containers:
       - name: eventrouter
         image: ghcr.io/kuoss/eventrouter:latest
+        resources:
+          limits:
+            memory: "64Mi"
+            cpu: "100m"
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+        volumeMounts:
+        - name: config
+          mountPath: /etc/eventrouter
+      volumes:
+      - name: config
+        configMap:
+          name: eventrouter
+---
+# Every key here already has the default shown, so this ConfigMap only
+# exists to give you something to `kubectl edit` - see config.example.yaml
+# for the full, commented list of keys, and README.md's Configuration
+# section for how to apply a change (the deployment needs a restart; editing
+# the ConfigMap alone does not reload a running pod).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: eventrouter
+  namespace: kube-system
+data:
+  config.yaml: |
+    sink: stdout

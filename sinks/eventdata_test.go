@@ -6,19 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
+	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
 func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
-	if name == "" {
-		name = "hello"
-	}
-	if reason == "" {
-		reason = "world"
-	}
 	if firstTime == nil {
 		firstTime = ptr.To(time.Now())
 	}
@@ -26,23 +21,14 @@ func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Ev
 		lastTime = ptr.To(time.Now())
 	}
 
-	return &v1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: "default",
-			UID:       "12345",
-		},
-		InvolvedObject: v1.ObjectReference{
-			Kind: "Pod",
-			UID:  "pod12345",
-		},
-		Reason:         reason,
-		Message:        "Successfully assigned test-pod to node-1",
-		Source:         v1.EventSource{Component: "kubelet", Host: "node-1"},
-		FirstTimestamp: metav1.Time{Time: *firstTime},
-		LastTimestamp:  metav1.Time{Time: *lastTime},
-		Type:           "Normal",
-	}
+	return kubeeventtest.CoreAPIEvent(
+		kubeeventtest.WithName(name),
+		kubeeventtest.WithUID("12345"),
+		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithMessage("Successfully assigned test-pod to node-1"),
+		kubeeventtest.WithTimes(*firstTime, *lastTime),
+	)
 }
 
 func zeroDatetime(input string) string {
@@ -96,4 +82,63 @@ func TestWriteFlattenedJSON(t *testing.T) {
 	require.Contains(t, got, `"event_involvedObject_kind":`)
 	require.Contains(t, got, `"event_metadata_namespace":"default"`)
 	require.Contains(t, got, `"verb":"ADDED"`)
+}
+
+// createTestEventsAPIEvent builds an event the way the API server returns one
+// over core/v1 when its reporter wrote it through events.k8s.io/v1: no source
+// and no first/last timestamp, with eventTime and the reporting fields
+// carrying the information instead.
+func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *v1.Event {
+	return kubeeventtest.EventsAPIEvent(
+		kubeeventtest.WithName(name),
+		kubeeventtest.WithUID("12345"),
+		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithMessage("Successfully assigned default/test-pod to node-1"),
+		kubeeventtest.WithEventTime(eventTime),
+	)
+}
+
+// TestWriteRFC5424Header checks the syslog header for both flavours of event.
+// The header is parsed back rather than compared as a string so that the
+// timestamp is actually asserted - reading lastTimestamp off an
+// events.k8s.io/v1 event would silently yield the zero time.
+func TestWriteRFC5424Header(t *testing.T) {
+	tm := time.Date(2026, 9, 4, 6, 35, 20, 0, time.UTC)
+
+	testCases := []struct {
+		name         string
+		event        *v1.Event
+		wantHostname string
+		wantAppName  string
+	}{
+		{
+			name:         "core/v1 event",
+			event:        createTestEvent("test-event", "Started", &tm, &tm),
+			wantHostname: "node-1",
+			wantAppName:  "kubelet",
+		},
+		{
+			name:         "events.k8s.io/v1 event",
+			event:        createTestEventsAPIEvent("test-event", "Scheduled", tm),
+			wantHostname: "",
+			wantAppName:  "default-scheduler",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			eventData := NewEventData(tc.event, nil)
+
+			var buffer bytes.Buffer
+			_, err := eventData.WriteRFC5424(&buffer)
+			require.NoError(t, err)
+
+			msg, err := rfc5424.NewFromBytes(buffer.Bytes())
+			require.NoError(t, err)
+			require.True(t, tm.Equal(msg.Timestamp), "want %s, got %s", tm, msg.Timestamp)
+			require.Equal(t, tc.wantHostname, msg.Hostname)
+			require.Equal(t, tc.wantAppName, msg.AppName)
+			require.Contains(t, msg.Message, `"reason":"`+tc.event.Reason+`"`)
+		})
+	}
 }

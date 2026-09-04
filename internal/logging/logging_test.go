@@ -1,4 +1,4 @@
-package main
+package logging
 
 import (
 	"log/slog"
@@ -27,13 +27,13 @@ func TestParseLevel(t *testing.T) {
 }
 
 func TestSetupLogging(t *testing.T) {
-	t.Cleanup(func() { setupLogging("json", "info") })
+	t.Cleanup(func() { Setup("json", "info") })
 
-	setupLogging("text", "debug")
+	Setup("text", "debug")
 	require.Equal(t, slog.LevelDebug, logLevel.Level())
 	require.True(t, slog.Default().Enabled(t.Context(), slog.LevelDebug))
 
-	setupLogging("json", "error")
+	Setup("json", "error")
 	require.Equal(t, slog.LevelError, logLevel.Level())
 	require.False(t, slog.Default().Enabled(t.Context(), slog.LevelWarn))
 }

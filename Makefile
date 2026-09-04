@@ -79,6 +79,10 @@ vulncheck: $(GOVULNCHECK) ## Report known vulnerabilities reachable from this co
 docker-build: ## Build the container image
 	docker build --build-arg VERSION=$(VERSION) -t $(IMG) .
 
+.PHONY: sample
+sample: ## Regenerate tests/sample/pod-log.ndjson
+	go run ./tests/sample/gen > tests/sample/pod-log.ndjson
+
 .PHONY: clean
 clean: ## Remove build artifacts and downloaded tools
 	rm -rf $(LOCALBIN) coverage.out

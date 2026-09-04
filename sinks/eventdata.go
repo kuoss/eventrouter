@@ -22,36 +22,31 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	v1 "k8s.io/api/core/v1"
 )
 
-// EventData encodes an eventrouter event and previous event, with a verb for
-// whether the event is created or updated.
+// EventData encodes an eventrouter event with a verb for whether it was just
+// created or is a repeat of one already seen.
 type EventData struct {
-	Verb     string    `json:"verb"`
-	Event    *v1.Event `json:"event"`
-	OldEvent *v1.Event `json:"old_event,omitempty"`
+	Verb  string    `json:"verb"`
+	Event *v1.Event `json:"event"`
 }
 
-// NewEventData constructs an EventData struct from an old and new event,
-// setting the verb accordingly
+// NewEventData constructs an EventData struct for eNew, setting the verb from
+// whether eOld - the previously seen version of the same event, or nil for
+// one seen for the first time - is present. eOld only ever decides the verb:
+// it is not itself written anywhere. A repeat's own event fields (count,
+// lastTimestamp or series) already say what changed, so carrying the whole
+// previous snapshot alongside it would roughly double every repeat's payload
+// to say very little more.
 func NewEventData(eNew *v1.Event, eOld *v1.Event) EventData {
-	var eData EventData
-	if eOld == nil {
-		eData = EventData{
-			Verb:  "ADDED",
-			Event: eNew,
-		}
-	} else {
-		eData = EventData{
-			Verb:     "UPDATED",
-			Event:    eNew,
-			OldEvent: eOld,
-		}
+	verb := "ADDED"
+	if eOld != nil {
+		verb = "UPDATED"
 	}
-
-	return eData
+	return EventData{Verb: verb, Event: eNew}
 }
 
 // WriteRFC5424 writes the current event data to the given io.Writer using
@@ -71,9 +66,9 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	// attempt at trying to clean them up here because hostnames and component
 	// names already adhere to this convention in practice.
 	msg := rfc5424.Message{
-		Timestamp: e.Event.LastTimestamp.Time,
-		Hostname:  e.Event.Source.Host,
-		AppName:   e.Event.Source.Component,
+		Timestamp: kubeevent.Timestamp(e.Event),
+		Hostname:  kubeevent.Host(e.Event),
+		AppName:   kubeevent.Component(e.Event),
 		Message:   string(eJSONBytes),
 	}
 

@@ -1,5 +1,0 @@
-{
-    "sink": "stdout",
-    "log-format": "json",
-    "log-level": "info"
-}

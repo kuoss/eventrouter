@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package logging installs the structured logger used by the whole program.
+package logging
 
 import (
 	"log/slog"
@@ -22,11 +23,11 @@ import (
 	"strings"
 )
 
-// logLevel is the level of the logger installed by setupLogging. It is a
-// LevelVar so that the level stays adjustable after the logger is installed.
+// logLevel is the level of the logger installed by Setup. It is a LevelVar so
+// that the level stays adjustable after the logger is installed.
 var logLevel = new(slog.LevelVar)
 
-// setupLogging installs the structured logger used by the whole program.
+// Setup installs the structured logger used by the whole program.
 //
 // Logs always go to stderr: stdout belongs to the stdout sink, which prints one
 // JSON event per line. JSON is the default format because log collectors
@@ -35,7 +36,7 @@ var logLevel = new(slog.LevelVar)
 //
 // Until this runs, the slog default logger already writes to stderr at info
 // level, so failures that happen while the config is being loaded are visible.
-func setupLogging(format, level string) {
+func Setup(format, level string) {
 	logLevel.Set(parseLevel(level))
 
 	opts := &slog.HandlerOptions{Level: logLevel}
