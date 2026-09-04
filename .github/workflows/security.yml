@@ -1,0 +1,51 @@
+name: security
+
+# Vulnerability findings depend on the database, not on the diff, so they are
+# reported on a schedule (and after every merge) instead of gating pull
+# requests.
+on:
+  schedule:
+  - cron: '0 3 * * 1' # every Monday, 03:00 UTC
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v7
+      with:
+        go-version-file: go.mod
+    - run: make vulncheck
+
+  trivy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+    - uses: actions/checkout@v7
+    - uses: docker/setup-buildx-action@v4
+    - name: Build image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        push: false
+        load: true
+        tags: eventrouter:scan
+        cache-from: type=gha
+    - name: Scan image
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        image-ref: eventrouter:scan
+        scanners: vuln
+        format: table
+        vuln-type: os,library
+        severity: CRITICAL,HIGH
+        # Only fail on findings that a rebuild or a bump can actually fix.
+        ignore-unfixed: true
+        exit-code: 1

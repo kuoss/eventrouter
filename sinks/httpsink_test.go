@@ -59,7 +59,6 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 			Kind: "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			SelfLink:  "/api/version/pods/foo",
 			Name:      "foo",
 			Namespace: "baz",
 			UID:       "bar",
