@@ -1,0 +1,28 @@
+version: "2"
+
+run:
+  # Generous enough for a cold cache in CI, low enough to catch a hang.
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - gocyclo
+    - misspell
+    - unconvert
+  settings:
+    gocyclo:
+      # ManufactureSink is the one outlier (18) - a flat switch over sink
+      # types. Anything above this should be split into smaller functions.
+      min-complexity: 20
+
+issues:
+  # Report every occurrence instead of the default 3 per message.
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

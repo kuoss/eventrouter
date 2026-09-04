@@ -31,7 +31,7 @@ func NewFromBytes(data []byte) (*Message, error) {
 
 	timestamp, err := time.Parse(time.RFC3339Nano, syslogParts[1])
 	if err != nil {
-		return nil, fmt.Errorf("invalid timestamp format: %v", err)
+		return nil, fmt.Errorf("invalid timestamp format: %w", err)
 	}
 
 	return &Message{

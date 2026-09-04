@@ -1,3 +1,16 @@
+## Development
+
+```
+$ make help     # list the available targets
+$ make checks   # lint, workflow lint, tests, image build, vulnerability scan
+```
+
+Tools (golangci-lint, govulncheck, actionlint) are pinned in the Makefile and
+installed under `./bin`, so they do not depend on what is in your `$PATH`.
+Pull requests run the same lint and tests; `govulncheck` and the image scan run
+on a schedule instead (`.github/workflows/security.yml`), because their result
+depends on the vulnerability database rather than on the change.
+
 ## DCO Sign off
 
 All authors to the project retain copyright to their work. However, to ensure

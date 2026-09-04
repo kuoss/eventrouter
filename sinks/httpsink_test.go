@@ -24,9 +24,11 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -39,17 +41,45 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	stopCh := make(chan bool, 1)
 	doneCh := make(chan bool, 1)
 
+	// The handler below runs on the server's own goroutine, so everything it
+	// shares with the test body is guarded by mu.
+	var mu sync.Mutex
 	got := bytes.NewBuffer(nil)
 	seenRequests := make([]*http.Request, 0)
 	mockStatus := http.StatusOK
 
+	setStatus := func(status int) {
+		mu.Lock()
+		defer mu.Unlock()
+		mockStatus = status
+	}
+	body := func() string {
+		mu.Lock()
+		defer mu.Unlock()
+		return got.String()
+	}
+	requestCount := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(seenRequests)
+	}
+	reset := func() {
+		mu.Lock()
+		defer mu.Unlock()
+		got.Truncate(0)
+		seenRequests = seenRequests[:0]
+	}
+
 	// Make a test server to send stuff too... it just copies its input to the
 	// `got` buffer and records the request.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
 		seenRequests = append(seenRequests, r)
 		written, err := io.Copy(got, r.Body)
-		require.NoError(t, err)
-		require.NotEmpty(t, written)
+		// assert, not require: FailNow must not be called off the test goroutine.
+		assert.NoError(t, err)
+		assert.NotEmpty(t, written)
 		w.WriteHeader(mockStatus)
 	}))
 	defer srv.Close()
@@ -59,7 +89,6 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 			Kind: "Pod",
 		},
 		ObjectMeta: metav1.ObjectMeta{
-			SelfLink:  "/api/version/pods/foo",
 			Name:      "foo",
 			Namespace: "baz",
 			UID:       "bar",
@@ -83,13 +112,12 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	stopCh <- true
 	<-doneCh
 
-	if got.Len() == 0 {
+	if body() == "" {
 		t.Errorf("Sent logs but didn't read any back")
 	}
 
 	// 2. Try with the server returning 500's, test retries
-	got.Truncate(0)
-	seenRequests = make([]*http.Request, 0)
+	reset()
 	sink = NewHTTPSink(srv.URL, false, 10)
 
 	go func() {
@@ -98,11 +126,11 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	}()
 
 	// Send the event, sleep to ensure the request is attempted
-	mockStatus = http.StatusInternalServerError
+	setStatus(http.StatusInternalServerError)
 	sink.UpdateEvents(evt, nil)
 	// TODO(SLEEP): this can result in flakes if the events aren't sent yet.
 	time.Sleep(100 * time.Millisecond)
-	mockStatus = http.StatusOK
+	setStatus(http.StatusOK)
 
 	// Start the server, then send the stop chan. Since it's synchronous, the HTTP
 	// client should still be trying to retry, so it won't read from the stop chan
@@ -110,10 +138,10 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	stopCh <- true
 	<-doneCh
 
-	if got.Len() == 0 {
+	if body() == "" {
 		t.Errorf("Sent logs but didn't read any back. HTTP error log: %v", sink.httpClient.Error)
 	}
-	if len(seenRequests) < 2 {
+	if requestCount() < 2 {
 		t.Errorf("Tried to simulate server errors for retry, more than one request should have been sent")
 	}
 
@@ -121,8 +149,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	// should be consumed (the rest discarded, since we're not running the
 	// processing loop yet.)
 	numExpected := 10
-	got.Truncate(0)
-	seenRequests = make([]*http.Request, 0)
+	reset()
 	sink = NewHTTPSink(srv.URL, true, numExpected)
 
 	for i := 0; i < 1000; i++ {
@@ -143,12 +170,12 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	stopCh <- true
 	<-doneCh
 
-	newlines := strings.Count(got.String(), "\n")
+	newlines := strings.Count(body(), "\n")
 	if newlines != numExpected {
 		t.Errorf("Got wrong number of lines back (got %v, expected %v)", newlines, numExpected)
 	}
-	if len(seenRequests) > 1 {
-		t.Errorf("Pending logs should have been coalesced into one request, but got %v requests", len(seenRequests))
+	if requestCount() > 1 {
+		t.Errorf("Pending logs should have been coalesced into one request, but got %v requests", requestCount())
 	}
 }
 

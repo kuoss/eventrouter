@@ -1,89 +1,87 @@
 name: pull-request
+
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
 
+# A PR only needs its latest revision verified.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only: nothing here writes to the repository or the registry. Requesting
+# write scopes would also make every Dependabot PR fail, since those runs only
+# ever get a read-only token.
 permissions:
   contents: read
-  pull-requests: write
 
 env:
+  # Keep in sync with the Makefile.
+  GOLANGCI_LINT_VERSION: v2.13.2
   IMAGE: ghcr.io/${{ github.repository }}:pr-${{ github.event.number }}
 
 jobs:
-  go-fmt:
+  lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v4
-    - uses: Jerome1337/gofmt-action@v1.0.5
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v7
       with:
-        gofmt-path: '.'
-        gofmt-flags: '-l -d'
-
-  goimports:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: Jerome1337/goimports-action@v1.0.3
-
-  golangci-lint:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
+        go-version-file: go.mod
+    # Covers gofmt and goimports too - see the formatters in .golangci.yml.
+    - uses: golangci/golangci-lint-action@v9
       with:
-        go-version: stable
-    - name: golangci-lint
-      uses: golangci/golangci-lint-action@v6
+        version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v7
+    - uses: actions/setup-go@v7
       with:
-        args: --timeout 5m
-        version: v1.64
-
-  go-test-failfast:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-    - run: go test ./... -v -failfast
-
-  go-test-coverage:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-    - run: go test ./... -coverprofile=coverage.out
-    - uses: codecov/codecov-action@v3
-    - run: go install github.com/mattn/goveralls@latest
-    - run: goveralls -service=github -coverprofile=coverage.out
-      env:
-        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  go-licenses:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - uses: actions/setup-go@v5
-    - run: go install github.com/google/go-licenses@v1.6.0
-    - run: go-licenses check .
+        go-version-file: go.mod
+    - run: make test-race
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v7
+      # A coverage service being down is not a reason to block a PR.
+      continue-on-error: true
+      with:
+        files: coverage.out
+        token: ${{ secrets.CODECOV_TOKEN }}
+    - name: Upload coverage to Coveralls
+      uses: coverallsapp/github-action@v2
+      continue-on-error: true
+      with:
+        file: coverage.out
+        format: golang
 
   docker-build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      
+    timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v4
-    - uses: docker/build-push-action@v4
+    - uses: actions/checkout@v7
+    - uses: docker/setup-buildx-action@v4
+    - name: Build image
+      uses: docker/build-push-action@v7
       with:
         context: .
         push: false
+        # Load into the local daemon so the scan below has something to read.
+        load: true
         tags: ${{ env.IMAGE }}
-        build-args: |
-          VERSION=development
-    - uses: aquasecurity/trivy-action@0.28.0
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    # Informational only: the vulnerability database changes without the PR
+    # changing, so this must not gate the merge. The scheduled security
+    # workflow is the one that fails on findings.
+    - name: Scan image
+      uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ${{ env.IMAGE }}
-        format: 'table'
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
+        scanners: vuln
+        format: table
+        vuln-type: os,library
+        severity: CRITICAL,HIGH
+        ignore-unfixed: true
+        exit-code: 0

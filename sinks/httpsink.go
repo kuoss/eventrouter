@@ -18,11 +18,12 @@ package sinks
 
 import (
 	"bytes"
+	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/eapache/channels"
 	"github.com/go-resty/resty/v2"
-	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -100,7 +101,7 @@ loop:
 			var evt EventData
 			var ok bool
 			if evt, ok = e.(EventData); !ok {
-				glog.Warningf("Invalid type sent through event channel: %T", e)
+				slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
 				continue loop
 			}
 
@@ -115,7 +116,7 @@ loop:
 				if evt, ok = e.(EventData); ok {
 					arr = append(arr, evt)
 				} else {
-					glog.Warningf("Invalid type sent through event channel: %T", e)
+					slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
 				}
 			}
 
@@ -138,7 +139,7 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 		w, err := evt.WriteRFC5424(h.bodyBuf)
 		written += w
 		if err != nil {
-			glog.Warningf("Could not write to event request body (wrote %v bytes): %v", written, err)
+			slog.Warn("could not write to event request body", "written", written, "err", err)
 			return
 		}
 
@@ -150,11 +151,11 @@ func (h *HTTPSink) drainEvents(events []EventData) {
 		SetBody(h.bodyBuf.String()).
 		Post(h.SinkURL)
 	if err != nil {
-		glog.Warningf(err.Error())
+		slog.Warn("could not post events to sink", "sinkURL", h.SinkURL, "err", err)
 		return
 	}
 
 	if resp.StatusCode() < 200 || resp.StatusCode() > 299 {
-		glog.Warningf("Got HTTP code %v from %v", resp.StatusCode(), h.SinkURL)
+		slog.Warn("got unexpected HTTP status from sink", "statusCode", resp.StatusCode(), "sinkURL", h.SinkURL)
 	}
 }

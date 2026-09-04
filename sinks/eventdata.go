@@ -60,7 +60,7 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 	var eJSONBytes []byte
 	var err error
 	if eJSONBytes, err = json.Marshal(e); err != nil {
-		return 0, fmt.Errorf("failed to json serialize event: %v", err)
+		return 0, fmt.Errorf("failed to json serialize event: %w", err)
 	}
 	// Each message should look like an RFC5424 syslog message:
 	// <NumberOfBytes/ASCII encoded integer><Space character><RFC5424 message:NumberOfBytes long>
@@ -88,12 +88,12 @@ func (e *EventData) WriteRFC5424(w io.Writer) (int64, error) {
 func (e *EventData) WriteFlattenedJSON(w io.Writer) (int64, error) {
 	eJSONBytes, err := json.Marshal(e)
 	if err != nil {
-		return 0, fmt.Errorf("failed to marshal event to JSON: %v", err)
+		return 0, fmt.Errorf("failed to marshal event to JSON: %w", err)
 	}
 
 	result, err := explodeJSONStr(string(eJSONBytes), "_")
 	if err != nil {
-		return 0, fmt.Errorf("failed to flatten JSON: %v", err)
+		return 0, fmt.Errorf("failed to flatten JSON: %w", err)
 	}
 
 	written, err := w.Write([]byte(result))
@@ -112,7 +112,7 @@ func explodeJSONStr(jsonStr, separator string) (string, error) {
 
 	flatJSON, err := json.Marshal(flatMap)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal flattened JSON: %v", err)
+		return "", fmt.Errorf("failed to marshal flattened JSON: %w", err)
 	}
 
 	return string(flatJSON), nil

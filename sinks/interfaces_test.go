@@ -8,14 +8,6 @@ import (
 )
 
 func TestManufactureSink(t *testing.T) {
-	t.Run("GlogSink", func(t *testing.T) {
-		viper.Set("sink", "glog")
-		sink := ManufactureSink()
-		require.NotNil(t, sink)
-		_, ok := sink.(*GlogSink)
-		require.True(t, ok, "Expected GlogSink")
-	})
-
 	t.Run("StdoutSink", func(t *testing.T) {
 		viper.Set("sink", "stdout")
 		viper.Set("stdoutJSONNamespace", "testnamespace")

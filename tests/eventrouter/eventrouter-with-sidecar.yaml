@@ -51,7 +51,7 @@ spec:
         - sh
         - -c
         - |
-          /eventrouter -v 3 -logtostderr | tee -a /logs/event.log
+          /app/eventrouter | tee -a /logs/event.log
         resources:
           limits:
             memory: "128Mi"
