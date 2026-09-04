@@ -15,6 +15,11 @@ See [`docs/testing.md`](docs/testing.md) for the shared test fixtures, the
 checked-in sample output, and the manual kind-cluster tests `make checks`
 does not run.
 
+Opening a pull request assigns it to you
+(`.github/workflows/auto-assign.yml`), so the pull request list shows who is
+carrying each one. An already assigned pull request is left alone, and bot
+authors such as Dependabot are skipped because they cannot be assignees.
+
 ## Releasing
 
 Open a pull request that changes `VERSION` to the version you want to release,

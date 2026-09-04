@@ -1,0 +1,30 @@
+name: auto-assign
+
+# pull_request_target rather than pull_request: a pull_request run started from
+# a fork only ever gets a read-only token and could not assign anyone. Nothing
+# here checks out or runs the pull request's code, so the elevated token is not
+# exposed to it - the job only calls the API.
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+
+jobs:
+  assign-author:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Leave an already assigned pull request alone, and skip bots: Dependabot
+    # and friends cannot be assignees, so assigning them fails the job.
+    if: |
+      github.event.pull_request.assignees[0] == null
+      && !endsWith(github.event.pull_request.user.login, '[bot]')
+    steps:
+    - name: Assign the author
+      run: gh pr edit "$NUMBER" --repo "$REPO" --add-assignee "$AUTHOR"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        REPO: ${{ github.repository }}
+        NUMBER: ${{ github.event.pull_request.number }}
+        AUTHOR: ${{ github.event.pull_request.user.login }}
