@@ -2,20 +2,22 @@ package sinks
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	v1 "k8s.io/api/core/v1"
 )
 
 type IUploader interface {
-	Upload(*s3manager.UploadInput, ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error)
+	Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error)
 }
 
 /*
@@ -59,18 +61,12 @@ type S3Sink struct {
 
 // NewS3Sink is the factory method constructing a new S3Sink
 func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion string, s3SinkBucket string, s3SinkBucketDir string, s3SinkUploadInterval int, overflow bool, bufferSize int, outputFormat string) (*S3Sink, error) {
-	awsConfig := &aws.Config{
-		Region:      aws.String(s3SinkRegion),
-		Credentials: credentials.NewStaticCredentials(awsAccessKeyID, s3SinkSecretAccessKey, ""),
-	}
-
-	awsConfig = awsConfig.WithCredentialsChainVerboseErrors(true)
-	sess, err := session.NewSession(awsConfig)
+	awsConfig, err := config.LoadDefaultConfig(context.Background(), config.WithRegion(s3SinkRegion), config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(awsAccessKeyID, s3SinkSecretAccessKey, "")))
 	if err != nil {
 		return nil, err
 	}
 
-	uploader := s3manager.NewUploader(sess)
+	uploader := manager.NewUploader(s3.NewFromConfig(awsConfig))
 
 	s := &S3Sink{
 		uploader:       uploader,
@@ -179,7 +175,7 @@ func (s *S3Sink) upload() {
 	now := time.Now()
 	key := s.getNewKey(now)
 
-	_, err := s.uploader.Upload(&s3manager.UploadInput{
+	_, err := s.uploader.Upload(context.Background(), &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 		Body:   s.bodyBuf,

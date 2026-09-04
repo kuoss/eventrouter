@@ -3,16 +3,27 @@ package router
 import (
 	"fmt"
 	"testing"
+
+	"github.com/kuoss/eventrouter/internal/config"
 	"time"
 
 	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/cache"
 )
+
+var viper = testConfig{}
+
+type testConfig struct{}
+
+func (testConfig) Set(key string, value any) {
+	if key == "enable-prometheus" {
+		config.SetPrometheusForTest(value.(bool))
+	}
+}
 
 var testTime = time.Date(2026, 9, 4, 6, 35, 20, 0, time.UTC)
 

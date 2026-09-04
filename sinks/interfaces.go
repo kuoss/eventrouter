@@ -20,10 +20,65 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 
-	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 )
+
+type settings struct{ values map[string]any }
+
+func (s *settings) SetDefault(k string, v any) {
+	if _, ok := s.values[k]; !ok {
+		s.values[k] = v
+	}
+}
+
+// GetString returns the k setting as a string, converting non-string scalars
+// (an unquoted YAML number, say) the way the other Get* methods do.
+func (s *settings) GetString(k string) string {
+	switch v := s.values[k].(type) {
+	case string:
+		return v
+	case nil:
+		return ""
+	default:
+		return fmt.Sprint(v)
+	}
+}
+
+// GetBool returns the k setting as a bool. A quoted YAML scalar such as
+// discardMessages: "true" decodes as a string, not a bool, so that case is
+// parsed rather than treated as unset.
+func (s *settings) GetBool(k string) bool {
+	switch v := s.values[k].(type) {
+	case bool:
+		return v
+	case string:
+		b, _ := strconv.ParseBool(v)
+		return b
+	}
+	return false
+}
+
+// GetInt returns the k setting as an int. yaml.v3 decodes an unquoted number
+// as int/int64/uint64/float64 depending on its shape; a quoted one (e.g.
+// bufferSize: "1500") decodes as a string and is parsed here too.
+func (s *settings) GetInt(k string) int {
+	switch v := s.values[k].(type) {
+	case int:
+		return v
+	case int64:
+		return int(v)
+	case uint64:
+		return int(v)
+	case float64:
+		return int(v)
+	case string:
+		n, _ := strconv.Atoi(v)
+		return n
+	}
+	return 0
+}
 
 // EventSinkInterface is the interface used to shunt events
 type EventSinkInterface interface {
@@ -36,7 +91,7 @@ type EventSinkInterface interface {
 // the same type can appear more than once with different settings - two
 // different HTTP endpoints, say. See config.example.yaml.
 func ManufactureSinks() []EventSinkInterface {
-	entries := sinkEntries()
+	entries := configuredSinks
 	out := make([]EventSinkInterface, 0, len(entries))
 	for _, entry := range entries {
 		name, _ := entry["type"].(string)
@@ -53,45 +108,25 @@ func ManufactureSinks() []EventSinkInterface {
 // error. YAML always decodes a list of maps as []interface{} of
 // map[string]interface{}; the []map[string]interface{} case exists for
 // viper.Set (as tests, and config's own default, use).
-func sinkEntries() []map[string]interface{} {
-	rawValue := viper.Get("sinks")
-	if rawValue == nil {
-		return []map[string]interface{}{{"type": "stdout"}}
-	}
+var configuredSinks = []map[string]any{{"type": "stdout"}}
 
-	switch raw := rawValue.(type) {
-	case []interface{}:
-		entries := make([]map[string]interface{}, 0, len(raw))
-		for i, r := range raw {
-			if m, ok := r.(map[string]interface{}); ok {
-				entries = append(entries, m)
-			} else {
-				panic(fmt.Sprintf(`invalid sinks entry at index %d: expected an object`, i))
-			}
-		}
-		return entries
-	case []map[string]interface{}:
-		return raw
-	default:
-		panic(`invalid "sinks": expected a list of objects`)
+func Configure(v []map[string]any) {
+	if v == nil {
+		configuredSinks = []map[string]any{{"type": "stdout"}}
+		return
 	}
+	configuredSinks = v
 }
 
 // entrySettings returns settings scoped to one "sinks" list entry, with
 // "type" excluded since it names the sink rather than configuring it.
-func entrySettings(entry map[string]interface{}) *viper.Viper {
-	v := viper.New()
-	for k, val := range entry {
-		if k != "type" {
-			v.Set(k, val)
-		}
-	}
-	return v
+func entrySettings(entry map[string]interface{}) *settings {
+	return &settings{values: entry}
 }
 
 // manufactureSink builds the sink named name, reading its settings (if it
 // has any) from settings - one "sinks" list entry, with "type" excluded.
-func manufactureSink(name string, settings *viper.Viper) EventSinkInterface {
+func manufactureSink(name string, settings *settings) EventSinkInterface {
 	slog.Info("sink selected", "sink", name)
 	switch name {
 	case "stdout":

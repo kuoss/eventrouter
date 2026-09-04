@@ -1,10 +1,12 @@
 package sinks
 
 import (
+	"context"
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -15,9 +17,9 @@ type MockUploader struct {
 	mock.Mock
 }
 
-func (m *MockUploader) Upload(input *s3manager.UploadInput, options ...func(*s3manager.Uploader)) (*s3manager.UploadOutput, error) {
+func (m *MockUploader) Upload(ctx context.Context, input *s3.PutObjectInput, options ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
 	args := m.Called(input)
-	return args.Get(0).(*s3manager.UploadOutput), args.Error(1)
+	return args.Get(0).(*manager.UploadOutput), args.Error(1)
 }
 
 func TestS3Sink_Upload(t *testing.T) {
@@ -32,7 +34,7 @@ func TestS3Sink_Upload(t *testing.T) {
 	}
 
 	// Set up the expected call to the mock uploader
-	mockUploader.On("Upload", mock.AnythingOfType("*s3manager.UploadInput")).Return(&s3manager.UploadOutput{}, nil).Times(2)
+	mockUploader.On("Upload", mock.AnythingOfType("*s3.PutObjectInput")).Return(&manager.UploadOutput{}, nil).Times(2)
 
 	// Simulate receiving a new event
 	s3Sink.UpdateEvents(event, nil)

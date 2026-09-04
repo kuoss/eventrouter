@@ -22,11 +22,14 @@ package config
 import (
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 
 	"github.com/kuoss/eventrouter/internal/logging"
-	"github.com/spf13/viper"
+	"github.com/kuoss/eventrouter/sinks"
+	"gopkg.in/yaml.v3"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -36,60 +39,67 @@ import (
 // Load parses the input and config file and returns a clientset. It also
 // installs the logger the config selects, as a side effect of needing the
 // config to know what to install.
-func Load() (kubernetes.Interface, error) {
+type Config struct {
+	Kubeconfig       string `yaml:"kubeconfig"`
+	EnablePrometheus *bool  `yaml:"enable-prometheus"`
+	Log              struct {
+		Format string `yaml:"format"`
+		Level  string `yaml:"level"`
+	} `yaml:"log"`
+	Sinks []map[string]any `yaml:"sinks"`
+}
+
+var loaded Config
+
+// Load reads configFile - or, if configFile is empty, tries
+// /etc/eventrouter/config.yaml (a mounted ConfigMap) and then ./config.yaml
+// (a local run) in that order - and returns a clientset.
+func Load(configFile string) (kubernetes.Interface, error) {
 	var config *rest.Config
 	var err error
 
-	// leverages a file|(ConfigMap)
-	// to be located at /etc/eventrouter/config.yaml - see config.example.yaml
-	// for every key, commented.
-	viper.SetConfigType("yaml")
-	viper.SetConfigName("config")
-	viper.AddConfigPath("/etc/eventrouter/")
-	viper.AddConfigPath(".")
-	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env
-	// var, overriding the search paths above. Must happen before
-	// ReadInConfig, which is the only call that actually reads it.
-	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
-		viper.SetConfigFile(forceCfg)
-	}
-	viper.SetDefault("kubeconfig", "")
-	viper.SetDefault("sinks", []map[string]interface{}{{"type": "stdout"}})
-	viper.SetDefault("enable-prometheus", true)
-	viper.SetDefault("log.format", "json")
-	viper.SetDefault("log.level", "info")
+	loaded = Config{EnablePrometheus: boolPtr(true), Sinks: []map[string]any{{"type": "stdout"}}}
+	loaded.Log.Format, loaded.Log.Level = "json", "info"
 
-	// Every key above already has a default, so a config file is an optional
-	// override, not a requirement: a missing one just means every key keeps
-	// its default. A file that exists but fails to parse is a real mistake,
-	// though, and still fails startup.
-	err = viper.ReadInConfig()
-	var notFound viper.ConfigFileNotFoundError
-	if err != nil && !errors.As(err, &notFound) {
-		return nil, fmt.Errorf("ReadInConfig err: %w", err)
+	// Every key above already has a default, so when the caller leaves the
+	// path to us, a missing file just means every key keeps its default -
+	// see config.example.yaml for all of them, commented. A caller-specified
+	// path (main.go's --config flag) is a deliberate choice, though, and a
+	// missing file there is a real mistake, not an optional override, so it
+	// fails startup instead of silently falling back to defaults. Either
+	// way, a file that exists but fails to parse also fails startup.
+	candidates := []string{"/etc/eventrouter/config.yaml", "./config.yaml"}
+	explicit := configFile != ""
+	if explicit {
+		candidates = []string{configFile}
 	}
-	if err != nil {
-		slog.Info("no config file found, using defaults and environment overrides")
+	var found bool
+	for _, c := range candidates {
+		f, openErr := os.Open(filepath.Clean(c))
+		if openErr != nil {
+			if explicit {
+				return nil, fmt.Errorf("open config file %q: %w", c, openErr)
+			}
+			continue
+		}
+		found = true
+		decodeErr := yaml.NewDecoder(f).Decode(&loaded)
+		_ = f.Close()
+		if decodeErr != nil && !errors.Is(decodeErr, io.EOF) {
+			return nil, fmt.Errorf("ReadInConfig err: %w", decodeErr)
+		}
+		break
 	}
+	if !found {
+		slog.Info("no config file found, using defaults")
+	}
+	logging.Setup(loaded.Log.Format, loaded.Log.Level)
+	sinks.Configure(loaded.Sinks)
 
-	err = viper.BindEnv("kubeconfig") // Allows the KUBECONFIG env var to override where the kubeconfig is
-	if err != nil {
-		return nil, fmt.Errorf("BindEnv err: %w", err)
+	kubeconfig := loaded.Kubeconfig
+	if kubeconfig == "" {
+		kubeconfig = os.Getenv("KUBECONFIG")
 	}
-
-	// Allows LOG_FORMAT/LOG_LEVEL to override the config file, so verbosity can
-	// be changed without editing the ConfigMap.
-	err = viper.BindEnv("log.format", "LOG_FORMAT")
-	if err != nil {
-		return nil, fmt.Errorf("BindEnv err: %w", err)
-	}
-	err = viper.BindEnv("log.level", "LOG_LEVEL")
-	if err != nil {
-		return nil, fmt.Errorf("BindEnv err: %w", err)
-	}
-	logging.Setup(viper.GetString("log.format"), viper.GetString("log.level"))
-
-	kubeconfig := viper.GetString("kubeconfig")
 	if len(kubeconfig) > 0 {
 		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
@@ -113,5 +123,10 @@ func Load() (kubernetes.Interface, error) {
 // PrometheusEnabled reports whether the "enable-prometheus" config key is
 // set, controlling both the /metrics endpoint and the event counters.
 func PrometheusEnabled() bool {
-	return viper.GetBool("enable-prometheus")
+	return loaded.EnablePrometheus != nil && *loaded.EnablePrometheus
 }
+
+// SetPrometheusForTest is used by package tests that exercise router behavior.
+func SetPrometheusForTest(v bool) { loaded.EnablePrometheus = boolPtr(v) }
+
+func boolPtr(v bool) *bool { return &v }

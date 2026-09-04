@@ -6,8 +6,8 @@ kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
 enable-prometheus: true # exposes /metrics
 
 log:
-  format: json # json, text (env: LOG_FORMAT)
-  level: info # debug, info, warn, error (env: LOG_LEVEL)
+  format: json # json, text
+  level: info # debug, info, warn, error
 
 # sinks is a list, each entry a "type" plus that sink's own settings inline.
 # The default is a single stdout sink, which takes no settings of its own.

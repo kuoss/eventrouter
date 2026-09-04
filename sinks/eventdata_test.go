@@ -10,15 +10,14 @@ import (
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 )
 
 func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
 	if firstTime == nil {
-		firstTime = ptr.To(time.Now())
+		firstTime = new(time.Now())
 	}
 	if lastTime == nil {
-		lastTime = ptr.To(time.Now())
+		lastTime = new(time.Now())
 	}
 
 	return kubeeventtest.CoreAPIEvent(
@@ -52,7 +51,7 @@ func assertEqualIgnoreDatetime(t *testing.T, expected, actual string) {
 }
 
 func TestWriteRFC5424(t *testing.T) {
-	want := `514 <24>1 2024-03-15T12:34:56.123456789+09:00 node-1 kubelet - - - {"verb":"ADDED","event":{"metadata":{"name":"test-event","namespace":"default","uid":"12345","creationTimestamp":null},"involvedObject":{"kind":"Pod","uid":"pod12345"},"reason":"Scheduled","message":"Successfully assigned test-pod to node-1","source":{"component":"kubelet","host":"node-1"},"firstTimestamp":"2025-03-14T09:47:52Z","lastTimestamp":"2025-03-14T09:47:52Z","type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}}`
+	want := `489 <24>1 2024-03-15T12:34:56.123456789+09:00 node-1 kubelet - - - {"verb":"ADDED","event":{"metadata":{"name":"test-event","namespace":"default","uid":"12345"},"involvedObject":{"kind":"Pod","uid":"pod12345"},"reason":"Scheduled","message":"Successfully assigned test-pod to node-1","source":{"component":"kubelet","host":"node-1"},"firstTimestamp":"2025-03-14T09:47:52Z","lastTimestamp":"2025-03-14T09:47:52Z","type":"Normal","eventTime":null,"reportingComponent":"","reportingInstance":""}}`
 
 	lastTime, _ := time.Parse(time.RFC3339Nano, "2024-03-15T12:34:56.123456789+09:00")
 	event := createTestEvent("test-event", "Scheduled", nil, &lastTime)
@@ -68,7 +67,7 @@ func TestWriteRFC5424(t *testing.T) {
 }
 
 func TestWriteFlattenedJSON(t *testing.T) {
-	want := `{"event_eventTime":null,"event_firstTimestamp":"2000-01-01T00:00:00Z","event_involvedObject_kind":"Pod","event_involvedObject_uid":"pod12345","event_lastTimestamp":"2000-01-01T00:00:00Z","event_message":"Successfully assigned test-pod to node-1","event_metadata_creationTimestamp":null,"event_metadata_name":"test-event","event_metadata_namespace":"default","event_metadata_uid":"12345","event_reason":"Scheduled","event_reportingComponent":"","event_reportingInstance":"","event_source_component":"kubelet","event_source_host":"node-1","event_type":"Normal","verb":"ADDED"}`
+	want := `{"event_eventTime":null,"event_firstTimestamp":"2000-01-01T00:00:00Z","event_involvedObject_kind":"Pod","event_involvedObject_uid":"pod12345","event_lastTimestamp":"2000-01-01T00:00:00Z","event_message":"Successfully assigned test-pod to node-1","event_metadata_name":"test-event","event_metadata_namespace":"default","event_metadata_uid":"12345","event_reason":"Scheduled","event_reportingComponent":"","event_reportingInstance":"","event_source_component":"kubelet","event_source_host":"node-1","event_type":"Normal","verb":"ADDED"}`
 
 	event := createTestEvent("test-event", "Scheduled", nil, nil)
 	eventData := NewEventData(event, nil)

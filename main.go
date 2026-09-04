@@ -37,6 +37,7 @@ var version = "dev"
 
 // addr tells us what address to have the Prometheus metrics listen on.
 var addr = flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
+var configFile = flag.String("config", "", "Path to the eventrouter YAML configuration file. If unset, /etc/eventrouter/config.yaml is tried, then ./config.yaml, and it's fine if neither exists.")
 
 // showVersion prints the version and exits, which also makes the image
 // runnable as a smoke test.
@@ -52,7 +53,7 @@ func main() {
 		return
 	}
 
-	clientset, err := config.Load()
+	clientset, err := config.Load(*configFile)
 	if err != nil {
 		slog.Error("config.Load failed", "err", err)
 		os.Exit(1)

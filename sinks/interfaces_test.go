@@ -4,9 +4,19 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
+
+var viper = testConfig{}
+
+type testConfig struct{}
+
+func (testConfig) Reset() { Configure(nil) }
+func (testConfig) Set(key string, value []map[string]interface{}) {
+	if key == "sinks" {
+		Configure(value)
+	}
+}
 
 func TestManufactureSinks(t *testing.T) {
 	t.Run("StdoutSink", func(t *testing.T) {
@@ -106,17 +116,8 @@ func TestManufactureSinks(t *testing.T) {
 		require.Empty(t, ManufactureSinks())
 	})
 
-	t.Run("InvalidSinksShape", func(t *testing.T) {
-		for _, raw := range []interface{}{"stdout", []interface{}{"stdout"}} {
-			viper.Reset()
-			viper.Set("sinks", raw)
-			require.Panics(t, func() { ManufactureSinks() })
-		}
-	})
-
-	t.Run("InvalidSinksEntry", func(t *testing.T) {
-		viper.Reset()
-		viper.Set("sinks", []interface{}{"stdout"})
-		require.Panics(t, func() { ManufactureSinks() })
-	})
+	// Shapes like "sinks: stdout" or "sinks: [stdout]" can't reach Configure
+	// at all - it takes []map[string]any, so a mismatched YAML shape fails
+	// to decode before this package ever sees it. See
+	// TestLoadWithInvalidSinksShape in internal/config for that coverage.
 }
