@@ -59,12 +59,10 @@ var (
 		"eventrouter_unknown_total", "Total number of events of unknown type in the kubernetes cluster")
 )
 
-// newEventCounterVec registers the vec with the default registry as a side
-// effect (promauto's whole purpose): a package-level var initializer runs
-// exactly once, guaranteed by the Go runtime, so unlike registering from
-// inside NewEventRouter - callable more than once in the same process, in
-// principle - there is no call path that could ever register the same vec
-// twice and panic.
+// newEventCounterVec registers the vec via promauto, so registration happens
+// from a package var initializer - which Go guarantees runs exactly once -
+// rather than from NewEventRouter, which could in principle run more than
+// once per process.
 func newEventCounterVec(name, help string) *prometheus.CounterVec {
 	return promauto.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, eventCounterLabels)
 }
