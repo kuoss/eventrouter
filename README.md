@@ -30,6 +30,29 @@ The image is published for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
 $ kubectl logs -f deployment/eventrouter -n kube-system 
 ``` 
 
+## Configuration
+
+Every config key already has a default, so eventrouter runs with no config
+file at all. To change one, mount a ConfigMap with a `config.json` at
+`/etc/eventrouter/` (see
+[`tests/eventrouter/eventrouter-with-configmap.yaml`][configmap-example] for a
+full example, including the RBAC eventrouter needs) - or, for local runs, drop
+a `config.json` next to the binary. A malformed file (present but not valid
+JSON) still fails startup; a missing one does not.
+
+| config key         | env var      | default    | values                                                                |
+| ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
+| `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
+| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3`, `influxdb`                                   |
+| `resync-interval`   | -            | `30m`      | how often the shared informer resyncs                                |
+| `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
+| `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
+| `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
+
+Each non-`stdout` sink has its own set of keys (`httpSinkUrl`, `s3SinkBucket`,
+`influxdbHost`, ...) - see [`sinks/interfaces.go`][sinks-interfaces] for the
+full list per sink.
+
 ## Event APIs
 
 Kubernetes serves events under two API groups. The original `core/v1` Event is
@@ -57,12 +80,8 @@ empty when the event names none - and `component`, the reporting controller.
 
 Events are written to **stdout** by the stdout sink (one JSON object per line).
 The application's own logs are structured ([log/slog][slog]) and go to
-**stderr**, so the two streams never get mixed.
-
-| config key   | env var      | default | values                          |
-| ------------ | ------------ | ------- | ------------------------------- |
-| `log-format` | `LOG_FORMAT` | `json`  | `json`, `text`                  |
-| `log-level`  | `LOG_LEVEL`  | `info`  | `debug`, `info`, `warn`, `error`|
+**stderr**, so the two streams never get mixed. `log-format`/`log-level`
+control the latter - see the [Configuration](#configuration) table above.
 
 ```
 $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
@@ -74,3 +93,5 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
 [slog]: https://pkg.go.dev/log/slog "log/slog"
+[configmap-example]: tests/eventrouter/eventrouter-with-configmap.yaml "ConfigMap example"
+[sinks-interfaces]: sinks/interfaces.go "sink configuration keys"
