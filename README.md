@@ -23,6 +23,8 @@ _sink_
 $ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/deploy/deploy.yaml
 ```
 
+The image is published for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
+
 ### Inspecting the output 
 ```
 $ kubectl logs -f deployment/eventrouter -n kube-system 
