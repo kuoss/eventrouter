@@ -81,18 +81,27 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - uses: docker/setup-buildx-action@v4
+    # Only to run the foreign-architecture image below; the build itself
+    # cross-compiles and needs no emulation.
+    - uses: docker/setup-qemu-action@v4
+      if: matrix.platform != 'linux/amd64'
+      with:
+        platforms: ${{ matrix.platform }}
     - name: Build image
       uses: docker/build-push-action@v7
       with:
         context: .
         platforms: ${{ matrix.platform }}
         push: false
-        # Only the platform that gets scanned has to reach the local daemon.
-        load: ${{ matrix.scan }}
+        load: true
         tags: ${{ env.IMAGE }}
         # No cache-to: the only layer a build cache can reuse here is
         # "go mod download" (the compile is invalidated by any source change),
         # and exporting the cache measured 99.7s against maybe 40s saved.
+    # Proves the binary actually runs on the target architecture, which
+    # building it does not.
+    - name: Run the image
+      run: docker run --rm --platform ${{ matrix.platform }} ${{ env.IMAGE }} --version
     # Informational only: the vulnerability database changes without the PR
     # changing, so this must not gate the merge. The scheduled security
     # workflow is the one that fails on findings.
