@@ -8,18 +8,21 @@ enable-prometheus: true # exposes /metrics
 log-format: json # json, text (env: LOG_FORMAT)
 log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 
+# --- sink: stdout ---
 stdout:
   jsonNamespace: "" # wrap each event as {"<jsonNamespace>": <event>} instead of writing it bare
 
 # Uncomment the block matching `sink` above and fill it in - the rest are
 # ignored either way.
 
-# http: # POSTs RFC5424-framed events to an HTTP endpoint
+# --- sink: http --- POSTs RFC5424-framed events to an HTTP endpoint
+# http:
 #   url: "" # required
 #   bufferSize: 1500 # events buffered before...
 #   discardMessages: true # ...dropping (true) or blocking the watch (false)
 
-# s3sink: # batches events and uploads them to an S3 bucket
+# --- sink: s3sink --- batches events and uploads them to an S3 bucket
+# s3sink:
 #   accessKeyId: ""
 #   secretAccessKey: ""
 #   region: ""
@@ -30,6 +33,7 @@ stdout:
 #   discardMessages: true
 #   uploadInterval: 120 # seconds between uploads
 
+# --- sink: influxdb ---
 # influxdb:
 #   host: ""
 #   username: ""
