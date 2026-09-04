@@ -62,16 +62,27 @@ jobs:
     steps:
     - uses: actions/checkout@v7
     - uses: docker/setup-buildx-action@v4
-    - name: Build image
+    # Every platform the release builds, so an arch-specific break in the
+    # Dockerfile shows up here rather than on a release tag.
+    - name: Build image for every release platform
       uses: docker/build-push-action@v7
       with:
         context: .
+        platforms: linux/amd64,linux/arm64
         push: false
-        # Load into the local daemon so the scan below has something to read.
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+    # Again for amd64 only: --load takes a single platform, and the scan below
+    # needs the image in the local daemon. Served from the cache above.
+    - name: Load image for scanning
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        platforms: linux/amd64
+        push: false
         load: true
         tags: ${{ env.IMAGE }}
         cache-from: type=gha
-        cache-to: type=gha,mode=max
     # Informational only: the vulnerability database changes without the PR
     # changing, so this must not gate the merge. The scheduled security
     # workflow is the one that fails on findings.

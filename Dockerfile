@@ -1,14 +1,20 @@
 # build stage
-FROM golang:1.25 AS builder
+# Built on the runner's own platform and cross-compiled from there: the Go
+# toolchain does that far faster than emulating the target platform.
+FROM --platform=${BUILDPLATFORM} golang:1.25 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download -x
 
 COPY . .
-RUN CGO_ENABLED=0 go build -ldflags="-w -s" -o /app/eventrouter
+ARG TARGETOS TARGETARCH
+RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -ldflags="-w -s" -o /app/eventrouter
 
 # final stage
-FROM quay.io/prometheus/busybox-linux-amd64:latest
+# A multi-arch manifest, so buildx pulls the variant matching the target
+# platform. Nothing is executed in this stage, only copied into it, which is
+# why the build needs no QEMU.
+FROM quay.io/prometheus/busybox:latest
 COPY --from=builder /app/eventrouter /app/eventrouter
 COPY docs/config.json /etc/eventrouter/config.json
 
