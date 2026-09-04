@@ -49,6 +49,13 @@ spec:
       containers:
       - name: eventrouter
         image: ghcr.io/kuoss/eventrouter:latest
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "128Mi"
+            cpu: "500m"
         volumeMounts:
         - name: config
           mountPath: /etc/eventrouter
