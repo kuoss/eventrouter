@@ -180,7 +180,15 @@ func (er *EventRouter) deleteEvent(obj interface{}) {
 	slog.Debug("event deleted from the system", "event", e)
 }
 
+// toEventPointer extracts the *v1.Event from a raw informer object. When the
+// informer misses a delete (a disconnect, for one) it hands DeleteFunc a
+// cache.DeletedFinalStateUnknown holding only the last object it knew about,
+// instead of the object itself; unwrap that first; the way client-go's own
+// controllers do, so a recoverable delete is not reported as an error.
 func toEventPointer(obj interface{}) (*v1.Event, error) {
+	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+		obj = tombstone.Obj
+	}
 	e, ok := obj.(*v1.Event)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)

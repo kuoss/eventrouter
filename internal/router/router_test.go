@@ -65,7 +65,23 @@ func TestToEventPointer(t *testing.T) {
 			&v1.Event{Reason: "hello", Message: "world"},
 			&v1.Event{Reason: "hello", Message: "world"}, "",
 		},
-		// *cache.DeletedFinalStateUnknown
+		// cache.DeletedFinalStateUnknown - client-go only ever constructs
+		// this as a value (see tools/cache/delta_fifo.go), so this is what a
+		// real informer actually hands DeleteFunc on a missed delete.
+		{
+			cache.DeletedFinalStateUnknown{Key: "default/foo", Obj: &v1.Event{Reason: "recovered"}},
+			&v1.Event{Reason: "recovered"}, "",
+		},
+		{
+			cache.DeletedFinalStateUnknown{},
+			nil, "unexpected type: <nil>",
+		},
+		{
+			cache.DeletedFinalStateUnknown{Key: "hello", Obj: "world"},
+			nil, "unexpected type: string",
+		},
+		// *cache.DeletedFinalStateUnknown - a pointer, which client-go never
+		// actually constructs. Not unwrapped, so this still falls through.
 		{
 			&cache.DeletedFinalStateUnknown{},
 			nil, "unexpected type: *cache.DeletedFinalStateUnknown",
@@ -82,14 +98,6 @@ func TestToEventPointer(t *testing.T) {
 		{
 			v1.Event{Reason: "hello", Message: "world"},
 			nil, "unexpected type: v1.Event",
-		},
-		{
-			cache.DeletedFinalStateUnknown{},
-			nil, "unexpected type: cache.DeletedFinalStateUnknown",
-		},
-		{
-			cache.DeletedFinalStateUnknown{Key: "hello", Obj: "world"},
-			nil, "unexpected type: cache.DeletedFinalStateUnknown",
 		},
 		{
 			v1.Pod{},
