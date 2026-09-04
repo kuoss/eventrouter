@@ -23,6 +23,15 @@ _sink_
 $ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/deploy/deploy.yaml
 ```
 
+`kubectl create` only works for a first install - to change something later (bump the
+image tag, tweak the ConfigMap) without deleting and recreating everything, apply
+[`deploy/`][deploy-dir] with kustomize instead, which `kubectl apply -k` re-runs safely:
+```
+$ kubectl apply -k github.com/kuoss/eventrouter/deploy?ref=main
+```
+(or clone the repo and run it against `deploy/` locally, e.g. from a kustomize overlay
+that patches the image tag or replica count.)
+
 The image is published for `linux/amd64`, `linux/arm64` and `linux/arm/v7`.
 
 ### Inspecting the output 
@@ -114,6 +123,7 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
 [slog]: https://pkg.go.dev/log/slog "log/slog"
 [deploy-manifest]: deploy/deploy.yaml "deployment manifest"
+[deploy-dir]: deploy/ "deploy/"
 [event-doc]: docs/event.md "core/v1 vs events.k8s.io/v1"
 [config-example]: config.example.yaml "annotated config reference"
 [sample-log]: tests/sample/pod-log.ndjson "sample pod log"
