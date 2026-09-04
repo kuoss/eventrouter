@@ -29,78 +29,80 @@ type EventSinkInterface interface {
 	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
 }
 
-// ManufactureSink will manufacture a sink according to viper configs
+// ManufactureSink builds the sink named by the "sink" config key, reading
+// that sink's settings from the nested block of the same name (e.g. "sink:
+// http" reads its settings from the "http:" block) - see config.example.yaml.
 // TODO: Determine if it should return an array of sinks
 func ManufactureSink() (e EventSinkInterface) {
 	s := viper.GetString("sink")
 	slog.Info("sink selected", "sink", s)
 	switch s {
 	case "stdout":
-		viper.SetDefault("stdoutJSONNamespace", "")
-		stdoutNamespace := viper.GetString("stdoutJSONNamespace")
+		viper.SetDefault("stdout.jsonNamespace", "")
+		stdoutNamespace := viper.GetString("stdout.jsonNamespace")
 		e = NewStdoutSink(stdoutNamespace)
 	case "http":
-		url := viper.GetString("httpSinkUrl")
+		url := viper.GetString("http.url")
 		if url == "" {
-			panic("http sink specified but no httpSinkUrl")
+			panic("http sink specified but no http.url")
 		}
 
 		// By default we buffer up to 1500 events, and drop messages if more than
 		// 1500 have come in without getting consumed
-		viper.SetDefault("httpSinkBufferSize", 1500)
-		viper.SetDefault("httpSinkDiscardMessages", true)
+		viper.SetDefault("http.bufferSize", 1500)
+		viper.SetDefault("http.discardMessages", true)
 
-		bufferSize := viper.GetInt("httpSinkBufferSize")
-		overflow := viper.GetBool("httpSinkDiscardMessages")
+		bufferSize := viper.GetInt("http.bufferSize")
+		overflow := viper.GetBool("http.discardMessages")
 
 		h := NewHTTPSink(url, overflow, bufferSize)
 		go h.Run(make(chan bool))
 		return h
 	case "s3sink":
-		accessKeyID := viper.GetString("s3SinkAccessKeyID")
+		accessKeyID := viper.GetString("s3sink.accessKeyId")
 		if accessKeyID == "" {
-			panic("s3 sink specified but s3SinkAccessKeyID not specified")
+			panic("s3sink specified but s3sink.accessKeyId not specified")
 		}
 
-		secretAccessKey := viper.GetString("s3SinkSecretAccessKey")
+		secretAccessKey := viper.GetString("s3sink.secretAccessKey")
 		if secretAccessKey == "" {
-			panic("s3 sink specified but s3SinkSecretAccessKey not specified")
+			panic("s3sink specified but s3sink.secretAccessKey not specified")
 		}
 
-		region := viper.GetString("s3SinkRegion")
+		region := viper.GetString("s3sink.region")
 		if region == "" {
-			panic("s3 sink specified but s3SinkRegion not specified")
+			panic("s3sink specified but s3sink.region not specified")
 		}
 
-		bucket := viper.GetString("s3SinkBucket")
+		bucket := viper.GetString("s3sink.bucket")
 		if bucket == "" {
-			panic("s3 sink specified but s3SinkBucket not specified")
+			panic("s3sink specified but s3sink.bucket not specified")
 		}
 
-		bucketDir := viper.GetString("s3SinkBucketDir")
+		bucketDir := viper.GetString("s3sink.bucketDir")
 		if bucketDir == "" {
-			panic("s3 sink specified but s3SinkBucketDir not specified")
+			panic("s3sink specified but s3sink.bucketDir not specified")
 		}
 
 		// By default the json is pushed to s3 in not flatenned rfc5424 write format
 		// The option to write to s3 is in the flattened json format which will help in
 		// using the data in redshift with least effort
-		viper.SetDefault("s3SinkOutputFormat", "rfc5424")
-		outputFormat := viper.GetString("s3SinkOutputFormat")
+		viper.SetDefault("s3sink.outputFormat", "rfc5424")
+		outputFormat := viper.GetString("s3sink.outputFormat")
 		if outputFormat != "rfc5424" && outputFormat != "flatjson" {
-			panic("s3 sink specified, but incorrect s3SinkOutputFormat specified. Supported formats are: rfc5424 (default) and flatjson")
+			panic("s3sink specified, but incorrect s3sink.outputFormat specified. Supported formats are: rfc5424 (default) and flatjson")
 		}
 
 		// By default we buffer up to 1500 events, and drop messages if more than
 		// 1500 have come in without getting consumed
-		viper.SetDefault("s3SinkBufferSize", 1500)
-		viper.SetDefault("s3SinkDiscardMessages", true)
+		viper.SetDefault("s3sink.bufferSize", 1500)
+		viper.SetDefault("s3sink.discardMessages", true)
 
-		viper.SetDefault("s3SinkUploadInterval", 120)
-		uploadInterval := viper.GetInt("s3SinkUploadInterval")
+		viper.SetDefault("s3sink.uploadInterval", 120)
+		uploadInterval := viper.GetInt("s3sink.uploadInterval")
 
-		bufferSize := viper.GetInt("s3SinkBufferSize")
-		overflow := viper.GetBool("s3SinkDiscardMessages")
+		bufferSize := viper.GetInt("s3sink.bufferSize")
+		overflow := viper.GetBool("s3sink.discardMessages")
 
 		s, err := NewS3Sink(accessKeyID, secretAccessKey, region, bucket, bucketDir, uploadInterval, overflow, bufferSize, outputFormat)
 		if err != nil {
@@ -110,38 +112,38 @@ func ManufactureSink() (e EventSinkInterface) {
 		go s.Run(make(chan bool))
 		return s
 	case "influxdb":
-		host := viper.GetString("influxdbHost")
+		host := viper.GetString("influxdb.host")
 		if host == "" {
-			panic("influxdb sink specified but influxdbHost not specified")
+			panic("influxdb sink specified but influxdb.host not specified")
 		}
 
-		username := viper.GetString("influxdbUsername")
+		username := viper.GetString("influxdb.username")
 		if username == "" {
-			panic("influxdb sink specified but influxdbUsername not specified")
+			panic("influxdb sink specified but influxdb.username not specified")
 		}
 
-		password := viper.GetString("influxdbPassword")
+		password := viper.GetString("influxdb.password")
 		if password == "" {
-			panic("influxdb sink specified but influxdbPassword not specified")
+			panic("influxdb sink specified but influxdb.password not specified")
 		}
 
-		viper.SetDefault("influxdbName", "k8s")
-		viper.SetDefault("influxdbSecure", false)
-		viper.SetDefault("influxdbWithFields", false)
-		viper.SetDefault("influxdbInsecureSsl", false)
-		viper.SetDefault("influxdbRetentionPolicy", "0")
-		viper.SetDefault("influxdbClusterName", "default")
-		viper.SetDefault("influxdbDisableCounterMetrics", false)
-		viper.SetDefault("influxdbConcurrency", 1)
+		viper.SetDefault("influxdb.name", "k8s")
+		viper.SetDefault("influxdb.secure", false)
+		viper.SetDefault("influxdb.withFields", false)
+		viper.SetDefault("influxdb.insecureSsl", false)
+		viper.SetDefault("influxdb.retentionPolicy", "0")
+		viper.SetDefault("influxdb.clusterName", "default")
+		viper.SetDefault("influxdb.disableCounterMetrics", false)
+		viper.SetDefault("influxdb.concurrency", 1)
 
-		dbName := viper.GetString("influxdbName")
-		secure := viper.GetBool("influxdbSecure")
-		withFields := viper.GetBool("influxdbWithFields")
-		insecureSsl := viper.GetBool("influxdbInsecureSsl")
-		retentionPolicy := viper.GetString("influxdbRetentionPolicy")
-		cluterName := viper.GetString("influxdbClusterName")
-		disableCounterMetrics := viper.GetBool("influxdbDisableCounterMetrics")
-		concurrency := viper.GetInt("influxdbConcurrency")
+		dbName := viper.GetString("influxdb.name")
+		secure := viper.GetBool("influxdb.secure")
+		withFields := viper.GetBool("influxdb.withFields")
+		insecureSsl := viper.GetBool("influxdb.insecureSsl")
+		retentionPolicy := viper.GetString("influxdb.retentionPolicy")
+		cluterName := viper.GetString("influxdb.clusterName")
+		disableCounterMetrics := viper.GetBool("influxdb.disableCounterMetrics")
+		concurrency := viper.GetInt("influxdb.concurrency")
 
 		cfg := InfluxdbConfig{
 			User:                  username,

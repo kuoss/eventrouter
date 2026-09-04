@@ -41,8 +41,9 @@ func Load() (kubernetes.Interface, error) {
 	var err error
 
 	// leverages a file|(ConfigMap)
-	// to be located at /etc/eventrouter/config
-	viper.SetConfigType("json")
+	// to be located at /etc/eventrouter/config.yaml - see config.example.yaml
+	// for every key, commented.
+	viper.SetConfigType("yaml")
 	viper.SetConfigName("config")
 	viper.AddConfigPath("/etc/eventrouter/")
 	viper.AddConfigPath(".")

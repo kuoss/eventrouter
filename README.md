@@ -33,24 +33,26 @@ $ kubectl logs -f deployment/eventrouter -n kube-system
 ## Configuration
 
 Every config key already has a default, so eventrouter runs with no config
-file at all. To change one, mount a ConfigMap with a `config.json` at
-`/etc/eventrouter/` (see
-[`tests/eventrouter/eventrouter-with-configmap.yaml`][configmap-example] for a
-full example, including the RBAC eventrouter needs) - or, for local runs, drop
-a `config.json` next to the binary. A malformed file (present but not valid
-JSON) still fails startup; a missing one does not.
+file at all. To change one, mount a ConfigMap with a `config.yaml` at
+`/etc/eventrouter/` - [`deploy/deploy.yaml`][deploy-manifest] already does
+this, so `kubectl edit configmap eventrouter -n kube-system` (then restart the
+deployment to pick it up) is enough for most changes - or, for local runs,
+copy [`config.example.yaml`][config-example] to `config.yaml` next to the
+binary and edit that. A malformed file (present but not valid YAML) still
+fails startup; a missing one does not.
 
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3`, `influxdb`                                   |
+| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`                               |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
 | `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
 | `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
 
-Each non-`stdout` sink has its own set of keys (`httpSinkUrl`, `s3SinkBucket`,
-`influxdbHost`, ...) - see [`sinks/interfaces.go`][sinks-interfaces] for the
-full list per sink.
+Each sink reads its own settings from a nested block of the same name as the
+`sink` value (e.g. `sink: http` reads the `http:` block) - see
+[`config.example.yaml`][config-example] for the full, commented list per
+sink.
 
 ## Event APIs
 
@@ -92,5 +94,5 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
 [slog]: https://pkg.go.dev/log/slog "log/slog"
-[configmap-example]: tests/eventrouter/eventrouter-with-configmap.yaml "ConfigMap example"
-[sinks-interfaces]: sinks/interfaces.go "sink configuration keys"
+[deploy-manifest]: deploy/deploy.yaml "deployment manifest"
+[config-example]: config.example.yaml "annotated config reference"

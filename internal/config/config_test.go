@@ -14,7 +14,7 @@ func TestLoad(t *testing.T) {
 	viper.Reset()
 
 	// AddConfigPath(".") resolves against the process's working directory, so
-	// point it at testdata, whose config.json sets a kubeconfig path that
+	// point it at testdata, whose config.yaml sets a kubeconfig path that
 	// does not exist - Load should read the file fine and then fail
 	// predictably once it tries to build a client from that path.
 	t.Chdir("testdata")
@@ -27,7 +27,7 @@ func TestLoad(t *testing.T) {
 func TestLoadWithoutConfigFile(t *testing.T) {
 	viper.Reset()
 
-	// An empty directory: no config.json for AddConfigPath(".") to find.
+	// An empty directory: no config.yaml for AddConfigPath(".") to find.
 	t.Chdir(t.TempDir())
 
 	// Force the not-in-cluster branch regardless of where the test happens to
