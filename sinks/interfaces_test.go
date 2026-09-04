@@ -1,39 +1,87 @@
 package sinks
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 )
 
-func TestManufactureSink(t *testing.T) {
+func TestManufactureSinks(t *testing.T) {
 	t.Run("StdoutSink", func(t *testing.T) {
-		viper.Set("sink", "stdout")
-		sink := ManufactureSink()
-		require.NotNil(t, sink)
-		_, ok := sink.(*StdoutSink)
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{{"type": "stdout"}})
+
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		_, ok := got[0].(*StdoutSink)
 		require.True(t, ok, "Expected StdoutSink")
 	})
 
 	t.Run("HTTPSink", func(t *testing.T) {
-		viper.Set("sink", "http")
-		viper.Set("http.url", "http://localhost")
-		viper.Set("http.bufferSize", 1500)
-		viper.Set("http.discardMessages", true)
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "http", "url": "http://localhost", "bufferSize": 1500, "discardMessages": true},
+		})
 
-		sink := ManufactureSink()
-		require.NotNil(t, sink)
-		httpSink, ok := sink.(*HTTPSink)
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		httpSink, ok := got[0].(*HTTPSink)
 		require.True(t, ok, "Expected HTTPSink")
 
-		// Check if there's a method or public field to access the URL
-		// Assuming url is a public field in HTTPSink struct
 		require.Equal(t, "http://localhost", httpSink.SinkURL)
 	})
 
-	t.Run("InvalidSink", func(t *testing.T) {
-		viper.Set("sink", "invalid")
+	t.Run("FileSink", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "filesink", "path": filepath.Join(t.TempDir(), "event.log")},
+		})
+
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		_, ok := got[0].(*FileSink)
+		require.True(t, ok, "Expected FileSink")
+	})
+
+	t.Run("MultipleEntriesSameType", func(t *testing.T) {
+		viper.Reset()
+		// Two entries of the same type, each with its own settings - the
+		// reason "sinks" is a list of {type, ...} rather than a top-level
+		// block per type: one block could never express this.
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "http", "url": "http://a"},
+			{"type": "http", "url": "http://b"},
+			{"type": "stdout"},
+		})
+
+		got := ManufactureSinks()
+		require.Len(t, got, 3)
+		first, ok := got[0].(*HTTPSink)
+		require.True(t, ok, "Expected HTTPSink first")
+		require.Equal(t, "http://a", first.SinkURL)
+		second, ok := got[1].(*HTTPSink)
+		require.True(t, ok, "Expected HTTPSink second")
+		require.Equal(t, "http://b", second.SinkURL)
+		_, ok = got[2].(*StdoutSink)
+		require.True(t, ok, "Expected StdoutSink third")
+	})
+
+	t.Run("EntryMissingType", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{
+			{"url": "http://a"},
+		})
+
+		require.PanicsWithValue(t, `sinks entry missing required "type"`, func() {
+			ManufactureSinks()
+		})
+	})
+
+	t.Run("InvalidType", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{{"type": "invalid"}})
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -41,8 +89,34 @@ func TestManufactureSink(t *testing.T) {
 			}
 		}()
 
-		ManufactureSink()
+		ManufactureSinks()
 	})
 
-	// Additional tests for each sink type can be added below
+	t.Run("NoSinksConfigured", func(t *testing.T) {
+		viper.Reset()
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		_, ok := got[0].(*StdoutSink)
+		require.True(t, ok, "Expected default StdoutSink")
+	})
+
+	t.Run("ExplicitEmptySinks", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []map[string]interface{}{})
+		require.Empty(t, ManufactureSinks())
+	})
+
+	t.Run("InvalidSinksShape", func(t *testing.T) {
+		for _, raw := range []interface{}{"stdout", []interface{}{"stdout"}} {
+			viper.Reset()
+			viper.Set("sinks", raw)
+			require.Panics(t, func() { ManufactureSinks() })
+		}
+	})
+
+	t.Run("InvalidSinksEntry", func(t *testing.T) {
+		viper.Reset()
+		viper.Set("sinks", []interface{}{"stdout"})
+		require.Panics(t, func() { ManufactureSinks() })
+	})
 }

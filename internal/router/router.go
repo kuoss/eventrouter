@@ -79,17 +79,25 @@ type EventRouter struct {
 	// returns true if the event store has been synced
 	eListerSynched cache.InformerSynced
 
-	// event sink
-	// TODO: support multiple sinks at once? ManufactureSink would need to
-	// return a slice.
-	eSink sinks.EventSinkInterface
+	// event sinks - every event goes to each of them
+	eSinks []sinks.EventSinkInterface
 }
 
 // NewEventRouter will create a new event router using the input params
 func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformers.EventInformer) *EventRouter {
+	eSinks := sinks.ManufactureSinks()
+	if len(eSinks) == 0 {
+		// Not an error: an explicit "sinks: []" is a legitimate way to ask
+		// for no forwarding at all (Prometheus counters only, say), and we
+		// have no way to tell that apart from a mistake - but either way,
+		// silently dropping every event with no trace of it anywhere would
+		// be the wrong kind of quiet.
+		slog.Warn("no sinks configured - events will not be forwarded anywhere")
+	}
+
 	er := &EventRouter{
 		kubeClient: kubeClient,
-		eSink:      sinks.ManufactureSink(),
+		eSinks:     eSinks,
 	}
 	_, err := eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    er.addEvent,
@@ -123,7 +131,9 @@ func (er *EventRouter) Run(stopCh <-chan struct{}) {
 func (er *EventRouter) addEvent(obj interface{}) {
 	e := obj.(*v1.Event)
 	prometheusEvent(e)
-	er.eSink.UpdateEvents(e, nil)
+	for _, sink := range er.eSinks {
+		sink.UpdateEvents(e, nil)
+	}
 }
 
 // updateEvent is called any time there is an update to an existing event
@@ -131,7 +141,9 @@ func (er *EventRouter) updateEvent(objOld interface{}, objNew interface{}) {
 	eOld := objOld.(*v1.Event)
 	eNew := objNew.(*v1.Event)
 	prometheusEvent(eNew)
-	er.eSink.UpdateEvents(eNew, eOld)
+	for _, sink := range er.eSinks {
+		sink.UpdateEvents(eNew, eOld)
+	}
 }
 
 // prometheusEvent is called when an event is added or updated

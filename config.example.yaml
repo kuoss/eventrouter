@@ -3,42 +3,53 @@
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
 kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # stdout, http, s3sink, influxdb
 enable-prometheus: true # exposes /metrics
-log-format: json # json, text (env: LOG_FORMAT)
-log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 
-# stdout (the default) takes no settings. Uncomment the block matching
-# `sink` above for any other sink and fill it in.
+log:
+  format: json # json, text (env: LOG_FORMAT)
+  level: info # debug, info, warn, error (env: LOG_LEVEL)
 
-# --- sink: http --- POSTs RFC5424-framed events to an HTTP endpoint
-# http:
-#   url: "" # required
-#   bufferSize: 1500 # events buffered before dropping (discardMessages: true) or blocking
-#   discardMessages: true
+# sinks is a list, each entry a "type" plus that sink's own settings inline.
+# The default is a single stdout sink, which takes no settings of its own.
+# Listing the same type more than once configures more than one instance of
+# it, each with independent settings - two different HTTP endpoints, say.
+sinks:
+  - type: stdout
 
-# --- sink: s3sink --- batches events and uploads them to an S3 bucket
-# s3sink:
-#   accessKeyId: ""
-#   secretAccessKey: ""
-#   region: ""
-#   bucket: ""
-#   bucketDir: ""
-#   outputFormat: rfc5424 # rfc5424, flatjson
-#   bufferSize: 1500
-#   discardMessages: true
-#   uploadInterval: 120 # seconds between uploads
+  # Uncomment a block below (keep the indentation) to add or replace it.
 
-# --- sink: influxdb ---
-# influxdb:
-#   host: ""
-#   username: ""
-#   password: ""
-#   name: k8s
-#   secure: false
-#   withFields: false
-#   insecureSsl: false
-#   retentionPolicy: "0"
-#   clusterName: default
-#   disableCounterMetrics: false
-#   concurrency: 1
+  # - type: http # POSTs RFC5424-framed events to an HTTP endpoint
+  #   url: https://logs.example.com/ingest # required
+  #   bufferSize: 1500 # events buffered before dropping (discardMessages: true) or blocking
+  #   discardMessages: true
+
+  # - type: s3sink # batches events and uploads them to an S3 bucket
+  #   accessKeyId: AKIAIOSFODNN7EXAMPLE
+  #   secretAccessKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+  #   region: us-east-1
+  #   bucket: my-eventrouter-bucket
+  #   bucketDir: events
+  #   outputFormat: rfc5424 # rfc5424, flatjson
+  #   bufferSize: 1500
+  #   discardMessages: true
+  #   uploadInterval: 120 # seconds between uploads
+
+  # - type: influxdb
+  #   host: influxdb.example.com:8086
+  #   username: eventrouter
+  #   password: changeme
+  #   name: k8s
+  #   secure: false
+  #   withFields: false
+  #   insecureSsl: false
+  #   retentionPolicy: "0" # a number would be sent as one; InfluxDB wants this as a string
+  #   clusterName: default
+  #   disableCounterMetrics: false
+  #   concurrency: 1
+
+  # - type: filesink # writes one JSON event per line to a local file, rotated
+  #   path: /var/log/eventrouter/event.log # required - needs a volume mounted under it
+  #   maxSize: 100 # megabytes before rotating (0 defaults to 100)
+  #   maxBackups: 100 # rotated files to keep (0 = unlimited)
+  #   maxAge: 366 # days to keep rotated files (0 = unlimited)
+  #   compress: true # gzip rotated files
