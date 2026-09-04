@@ -99,9 +99,12 @@ jobs:
         # "go mod download" (the compile is invalidated by any source change),
         # and exporting the cache measured 99.7s against maybe 40s saved.
     # Proves the binary actually runs on the target architecture, which
-    # building it does not.
+    # building it does not. The binary is named explicitly because the image
+    # sets CMD rather than ENTRYPOINT, so an argument would replace it.
     - name: Run the image
-      run: docker run --rm --platform ${{ matrix.platform }} ${{ env.IMAGE }} --version
+      run: |
+        docker run --rm --platform ${{ matrix.platform }} ${{ env.IMAGE }} \
+          /app/eventrouter --version
     # Informational only: the vulnerability database changes without the PR
     # changing, so this must not gate the merge. The scheduled security
     # workflow is the one that fails on findings.
