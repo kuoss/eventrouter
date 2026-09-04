@@ -63,11 +63,38 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		defer mu.Unlock()
 		return len(seenRequests)
 	}
+	// requestReceived fires once per request the handler below finishes
+	// recording, so the test can wait for an event to actually reach the
+	// server instead of guessing how long that takes with a sleep. Buffered
+	// well past any single scenario's request count so the handler never
+	// blocks on it.
+	requestReceived := make(chan struct{}, 100)
+
 	reset := func() {
 		mu.Lock()
 		defer mu.Unlock()
 		got.Truncate(0)
 		seenRequests = seenRequests[:0]
+		// Discard any signal a previous scenario's request(s) left unclaimed
+		// (a passing scenario doesn't necessarily call waitForRequest once
+		// per request it triggers), so the next waitForRequest can't return
+		// early on a stale one.
+		for {
+			select {
+			case <-requestReceived:
+			default:
+				return
+			}
+		}
+	}
+
+	waitForRequest := func() {
+		t.Helper()
+		select {
+		case <-requestReceived:
+		case <-time.After(2 * time.Second):
+			t.Fatal("timed out waiting for a request to reach the test server")
+		}
 	}
 
 	// Make a test server to send stuff too... it just copies its input to the
@@ -81,6 +108,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		assert.NoError(t, err)
 		assert.NotEmpty(t, written)
 		w.WriteHeader(mockStatus)
+		requestReceived <- struct{}{}
 	}))
 	defer srv.Close()
 
@@ -125,11 +153,13 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		doneCh <- true
 	}()
 
-	// Send the event, sleep to ensure the request is attempted
+	// Send the event, and wait for the first attempt to actually land before
+	// flipping the server back to healthy - a buffered channel accepts
+	// UpdateEvents before Run has necessarily claimed it, so there is no
+	// other reliable signal that a request is even in flight yet.
 	setStatus(http.StatusInternalServerError)
 	sink.UpdateEvents(evt, nil)
-	// TODO(SLEEP): this can result in flakes if the events aren't sent yet.
-	time.Sleep(100 * time.Millisecond)
+	waitForRequest()
 	setStatus(http.StatusOK)
 
 	// Start the server, then send the stop chan. Since it's synchronous, the HTTP
@@ -162,10 +192,9 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 		doneCh <- true
 	}()
 
-	// TODO(SLEEP): Let the events go through (yes, sleeping is lame but there's
-	// no easy way to synchronize this since the code is supposed to be
-	// non-blocking.)
-	time.Sleep(100 * time.Millisecond)
+	// Wait for the coalesced batch to actually be posted rather than
+	// guessing how long that takes.
+	waitForRequest()
 
 	stopCh <- true
 	<-doneCh
