@@ -56,37 +56,48 @@ jobs:
         file: coverage.out
         format: golang
 
+  # Every platform the release builds, so an arch-specific break in the
+  # Dockerfile shows up here rather than on a release tag. One runner per
+  # platform: these builds are CPU-bound, so building all three on a single
+  # runner just splits the same cores three ways (183s each that way, ~90s
+  # with a runner to themselves).
   docker-build:
+    name: docker-build (${{ matrix.key }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - platform: linux/amd64
+          key: amd64
+          scan: true
+        - platform: linux/arm64
+          key: arm64
+          scan: false
+        - platform: linux/arm/v7
+          key: armv7
+          scan: false
     steps:
     - uses: actions/checkout@v7
     - uses: docker/setup-buildx-action@v4
-    # Every platform the release builds, so an arch-specific break in the
-    # Dockerfile shows up here rather than on a release tag.
-    - name: Build image for every release platform
+    - name: Build image
       uses: docker/build-push-action@v7
       with:
         context: .
-        platforms: linux/amd64,linux/arm64,linux/arm/v7
+        platforms: ${{ matrix.platform }}
         push: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-    # Again for amd64 only: --load takes a single platform, and the scan below
-    # needs the image in the local daemon. Served from the cache above.
-    - name: Load image for scanning
-      uses: docker/build-push-action@v7
-      with:
-        context: .
-        platforms: linux/amd64
-        push: false
-        load: true
+        # Only the platform that gets scanned has to reach the local daemon.
+        load: ${{ matrix.scan }}
         tags: ${{ env.IMAGE }}
-        cache-from: type=gha
+        # No cache-to: the only layer a build cache can reuse here is
+        # "go mod download" (the compile is invalidated by any source change),
+        # and exporting the cache measured 99.7s against maybe 40s saved.
     # Informational only: the vulnerability database changes without the PR
     # changing, so this must not gate the merge. The scheduled security
     # workflow is the one that fails on findings.
     - name: Scan image
+      if: matrix.scan
       uses: aquasecurity/trivy-action@v0.36.0
       with:
         image-ref: ${{ env.IMAGE }}
