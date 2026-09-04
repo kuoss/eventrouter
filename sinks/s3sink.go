@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/eapache/channels"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -49,7 +48,11 @@ type S3Sink struct {
 	uploadInterval time.Duration
 
 	// eventCh is used to interact eventRouter and the sharedInformer
-	eventCh channels.Channel
+	eventCh chan EventData
+
+	// overflow, when set, makes UpdateEvents drop events instead of blocking
+	// once eventCh's buffer is full.
+	overflow bool
 
 	// bodyBuf stores all the event captured data in a buffer before upload
 	bodyBuf *bytes.Buffer
@@ -79,21 +82,25 @@ func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion
 		bodyBuf:        bytes.NewBuffer(make([]byte, 0, 4096)),
 	}
 
-	if overflow {
-		s.eventCh = channels.NewOverflowingChannel(channels.BufferCap(bufferSize))
-	} else {
-		s.eventCh = channels.NewNativeChannel(channels.BufferCap(bufferSize))
-	}
+	s.eventCh = make(chan EventData, bufferSize)
+	s.overflow = overflow
 
 	return s, nil
 }
 
-// UpdateEvents implements the EventSinkInterface. It really just writes the
-// event data to the event OverflowingChannel, which should never block.
-// Messages that are buffered beyond the bufferSize specified for this HTTPSink
-// are discarded.
+// UpdateEvents implements the EventSinkInterface. If overflow is set, this
+// never blocks: events beyond the channel's buffer are discarded. Otherwise
+// it blocks once the buffer is full, applying backpressure to the caller.
 func (s *S3Sink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
-	s.eventCh.In() <- NewEventData(eNew, eOld)
+	evt := NewEventData(eNew, eOld)
+	if s.overflow {
+		select {
+		case s.eventCh <- evt:
+		default:
+		}
+		return
+	}
+	s.eventCh <- evt
 }
 
 // Run sits in a loop, waiting for data to come in through h.eventCh,
@@ -104,27 +111,15 @@ func (s *S3Sink) Run(stopCh <-chan bool) {
 loop:
 	for {
 		select {
-		case e := <-s.eventCh.Out():
-			var evt EventData
-			var ok bool
-			if evt, ok = e.(EventData); !ok {
-				slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
-				continue loop
-			}
-
+		case evt := <-s.eventCh:
 			// Start with just this event...
 			arr := []EventData{evt}
 
 			// Consume all buffered events into an array, in case more have been written
 			// since we last forwarded them
-			numEvents := s.eventCh.Len()
+			numEvents := len(s.eventCh)
 			for i := 0; i < numEvents; i++ {
-				e := <-s.eventCh.Out()
-				if evt, ok = e.(EventData); ok {
-					arr = append(arr, evt)
-				} else {
-					slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
-				}
+				arr = append(arr, <-s.eventCh)
 			}
 
 			s.drainEvents(arr)
