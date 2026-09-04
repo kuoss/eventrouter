@@ -5,8 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
@@ -17,9 +16,9 @@ type MockUploader struct {
 	mock.Mock
 }
 
-func (m *MockUploader) Upload(ctx context.Context, input *s3.PutObjectInput, options ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
+func (m *MockUploader) UploadObject(ctx context.Context, input *transfermanager.UploadObjectInput, options ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error) {
 	args := m.Called(input)
-	return args.Get(0).(*manager.UploadOutput), args.Error(1)
+	return args.Get(0).(*transfermanager.UploadObjectOutput), args.Error(1)
 }
 
 func TestS3Sink_Upload(t *testing.T) {
@@ -34,7 +33,7 @@ func TestS3Sink_Upload(t *testing.T) {
 	}
 
 	// Set up the expected call to the mock uploader
-	mockUploader.On("Upload", mock.AnythingOfType("*s3.PutObjectInput")).Return(&manager.UploadOutput{}, nil).Times(2)
+	mockUploader.On("UploadObject", mock.AnythingOfType("*transfermanager.UploadObjectInput")).Return(&transfermanager.UploadObjectOutput{}, nil).Times(2)
 
 	// Simulate receiving a new event
 	s3Sink.UpdateEvents(event, nil)
@@ -51,7 +50,7 @@ func TestS3Sink_Upload(t *testing.T) {
 	s3Sink.upload()
 
 	// Verify that the upload happened once
-	mockUploader.AssertNumberOfCalls(t, "Upload", 2)
+	mockUploader.AssertNumberOfCalls(t, "UploadObject", 2)
 }
 
 func TestCanUpload(t *testing.T) {

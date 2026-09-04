@@ -11,13 +11,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	v1 "k8s.io/api/core/v1"
 )
 
 type IUploader interface {
-	Upload(context.Context, *s3.PutObjectInput, ...func(*manager.Uploader)) (*manager.UploadOutput, error)
+	UploadObject(context.Context, *transfermanager.UploadObjectInput, ...func(*transfermanager.Options)) (*transfermanager.UploadObjectOutput, error)
 }
 
 /*
@@ -66,7 +66,7 @@ func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion
 		return nil, err
 	}
 
-	uploader := manager.NewUploader(s3.NewFromConfig(awsConfig))
+	uploader := transfermanager.New(s3.NewFromConfig(awsConfig))
 
 	s := &S3Sink{
 		uploader:       uploader,
@@ -175,7 +175,7 @@ func (s *S3Sink) upload() {
 	now := time.Now()
 	key := s.getNewKey(now)
 
-	_, err := s.uploader.Upload(context.Background(), &s3.PutObjectInput{
+	_, err := s.uploader.UploadObject(context.Background(), &transfermanager.UploadObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
 		Body:   s.bodyBuf,
