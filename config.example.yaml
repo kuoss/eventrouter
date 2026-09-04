@@ -19,25 +19,25 @@ sinks:
   # Uncomment a block below (keep the indentation) to add or replace it.
 
   # - type: http # POSTs RFC5424-framed events to an HTTP endpoint
-  #   url: "" # required
+  #   url: "https://logs.example.com/ingest" # required
   #   bufferSize: 1500 # events buffered before dropping (discardMessages: true) or blocking
   #   discardMessages: true
 
   # - type: s3sink # batches events and uploads them to an S3 bucket
-  #   accessKeyId: ""
-  #   secretAccessKey: ""
-  #   region: ""
-  #   bucket: ""
-  #   bucketDir: ""
+  #   accessKeyId: "AKIAIOSFODNN7EXAMPLE" # AWS docs' own placeholder key, never a real one
+  #   secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  #   region: "us-east-1"
+  #   bucket: "my-eventrouter-bucket"
+  #   bucketDir: "events"
   #   outputFormat: rfc5424 # rfc5424, flatjson
   #   bufferSize: 1500
   #   discardMessages: true
   #   uploadInterval: 120 # seconds between uploads
 
   # - type: influxdb
-  #   host: ""
-  #   username: ""
-  #   password: ""
+  #   host: "influxdb.example.com:8086"
+  #   username: "eventrouter"
+  #   password: "changeme"
   #   name: k8s
   #   secure: false
   #   withFields: false
@@ -48,7 +48,7 @@ sinks:
   #   concurrency: 1
 
   # - type: filesink # writes one JSON event per line to a local file, rotated
-  #   path: "" # required
+  #   path: "/var/log/eventrouter/events.log" # required
   #   maxSize: 100 # megabytes before rotating (0 defaults to 100)
   #   maxBackups: 100 # rotated files to keep (0 = unlimited)
   #   maxAge: 366 # days to keep rotated files (0 = unlimited)
