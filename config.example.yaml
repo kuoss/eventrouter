@@ -1,76 +1,44 @@
-# eventrouter configuration reference.
-#
-# Every key below already has the default shown, so this whole file is
-# optional - a missing config.yaml just means every default applies (a
-# present-but-invalid one, on the other hand, still fails startup). Copy this
-# file to config.yaml and delete everything you don't want to override, or
-# mount just the keys you need as a ConfigMap - see
-# deploy/deploy.yaml and README.md's Configuration section.
+# eventrouter configuration reference. Every key already has the default
+# shown, so this whole file is optional. Copy to config.yaml and edit, or
+# mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
-# Path to a kubeconfig file. Leave empty (the default) to use the in-cluster
-# service account, which is the normal case when running inside the cluster.
-# The KUBECONFIG env var overrides this.
-kubeconfig: ""
+kubeconfig: "" # kubeconfig path; empty uses the in-cluster service account (env: KUBECONFIG)
+sink: stdout # which block below is read: stdout, http, s3sink, influxdb
+enable-prometheus: true # exposes /metrics
+log-format: json # json, text (env: LOG_FORMAT)
+log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 
-# Which sink receives events. Only the block below matching this value is
-# read; the rest are ignored.
-# values: stdout, http, s3sink, influxdb
-sink: stdout
-
-# Exposes /metrics (the eventrouter_*_total Prometheus counters) on :8080.
-enable-prometheus: true
-
-# eventrouter's own logs (not the events, which the stdout sink always
-# writes as JSON). The LOG_FORMAT/LOG_LEVEL env vars override these two.
-# log-format values: json, text
-# log-level values: debug, info, warn, error
-log-format: json
-log-level: info
-
-# --- sink: stdout ---
-# Writes one JSON object per line to stdout.
 stdout:
-  # Wraps each event as {"<jsonNamespace>": <event>} instead of writing the
-  # bare event; empty (the default) leaves it bare.
-  jsonNamespace: ""
+  jsonNamespace: "" # wrap each event as {"<jsonNamespace>": <event>} instead of writing it bare
 
-# --- sink: http ---
-# POSTs RFC5424-framed events to an HTTP endpoint.
-http:
-  # Required when sink: http.
-  url: ""
-  # Events queued faster than they can be sent are buffered up to this many...
-  bufferSize: 1500
-  # ...and then either dropped (true) or left to block the watch (false) once
-  # the buffer is full.
-  discardMessages: true
+# Uncomment the block matching `sink` above and fill it in - the rest are
+# ignored either way.
 
-# --- sink: s3sink ---
-# Batches events and uploads them to an S3 bucket.
-s3sink:
-  accessKeyId: ""
-  secretAccessKey: ""
-  region: ""
-  bucket: ""
-  bucketDir: ""
-  # rfc5424 (default) or flatjson - flatjson is meant for loading into
-  # systems like Redshift with the least amount of transformation.
-  outputFormat: rfc5424
-  bufferSize: 1500
-  discardMessages: true
-  # Seconds between uploads.
-  uploadInterval: 120
+# http: # POSTs RFC5424-framed events to an HTTP endpoint
+#   url: "" # required
+#   bufferSize: 1500 # events buffered before...
+#   discardMessages: true # ...dropping (true) or blocking the watch (false)
 
-# --- sink: influxdb ---
-influxdb:
-  host: ""
-  username: ""
-  password: ""
-  name: k8s
-  secure: false
-  withFields: false
-  insecureSsl: false
-  retentionPolicy: "0"
-  clusterName: default
-  disableCounterMetrics: false
-  concurrency: 1
+# s3sink: # batches events and uploads them to an S3 bucket
+#   accessKeyId: ""
+#   secretAccessKey: ""
+#   region: ""
+#   bucket: ""
+#   bucketDir: ""
+#   outputFormat: rfc5424 # rfc5424, flatjson (flatjson suits Redshift-style loaders)
+#   bufferSize: 1500
+#   discardMessages: true
+#   uploadInterval: 120 # seconds between uploads
+
+# influxdb:
+#   host: ""
+#   username: ""
+#   password: ""
+#   name: k8s
+#   secure: false
+#   withFields: false
+#   insecureSsl: false
+#   retentionPolicy: "0"
+#   clusterName: default
+#   disableCounterMetrics: false
+#   concurrency: 1
