@@ -3,16 +3,14 @@
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
 kubeconfig: "" # kubeconfig path; empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # which block below is read: stdout, http, s3sink, influxdb
+sink: stdout # which block below is read: http, s3sink, influxdb (stdout takes no settings)
 enable-prometheus: true # exposes /metrics
 log-format: json # json, text (env: LOG_FORMAT)
 log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 
-# --- sink: stdout ---
-stdout:
-  jsonNamespace: "" # wrap each event as {"<jsonNamespace>": <event>} instead of writing it bare
-
-# Uncomment the block matching `sink` above and fill it in - the rest are
+# stdout (the default) writes one JSON object per line and takes no settings
+# of its own, so there is nothing to uncomment for it. Uncomment the block
+# matching `sink` above for any other sink and fill it in - the rest are
 # ignored either way.
 
 # --- sink: http --- POSTs RFC5424-framed events to an HTTP endpoint
