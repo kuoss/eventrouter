@@ -61,7 +61,7 @@ fails startup; a missing one does not.
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`                               |
+| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, or a list of these            |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
 | `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
 | `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
@@ -69,7 +69,8 @@ fails startup; a missing one does not.
 Each sink reads its own settings from a nested block of the same name as the
 `sink` value (e.g. `sink: http` reads the `http:` block) - see
 [`config.example.yaml`][config-example] for the full, commented list per
-sink.
+sink. Give `sink` a list (`sink: [stdout, http]`) to use more than one at
+once - every event goes to each of them.
 
 ## Event APIs
 

@@ -18,6 +18,7 @@ package sinks
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/spf13/viper"
@@ -29,15 +30,43 @@ type EventSinkInterface interface {
 	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
 }
 
-// ManufactureSink builds the sink named by the "sink" config key, reading
-// its settings from the matching nested block (e.g. "sink: http" reads
-// "http:") - see config.example.yaml. Returns a single sink.
-func ManufactureSink() (e EventSinkInterface) {
-	s := viper.GetString("sink")
-	slog.Info("sink selected", "sink", s)
-	switch s {
+// ManufactureSinks builds every sink named by the "sink" config key - a
+// single name (`sink: stdout`) or a list of them (`sink: [stdout, http]`) -
+// each reading its own settings (if it has any) from the nested block of the
+// same name. See config.example.yaml.
+func ManufactureSinks() []EventSinkInterface {
+	names := sinkNames()
+	out := make([]EventSinkInterface, 0, len(names))
+	for _, name := range names {
+		out = append(out, manufactureSink(name))
+	}
+	return out
+}
+
+// sinkNames normalizes the "sink" config key, which may be given as a single
+// scalar or a list, into the list of sink names to build.
+func sinkNames() []string {
+	switch v := viper.Get("sink").(type) {
+	case []interface{}:
+		names := make([]string, 0, len(v))
+		for _, s := range v {
+			names = append(names, fmt.Sprint(s))
+		}
+		return names
+	case []string:
+		return v
+	case string:
+		return []string{v}
+	default:
+		return nil
+	}
+}
+
+func manufactureSink(name string) EventSinkInterface {
+	slog.Info("sink selected", "sink", name)
+	switch name {
 	case "stdout":
-		e = NewStdoutSink()
+		return NewStdoutSink()
 	case "http":
 		url := viper.GetString("http.url")
 		if url == "" {
@@ -166,5 +195,4 @@ func ManufactureSink() (e EventSinkInterface) {
 		err := errors.New("invalid Sink Specified")
 		panic(err.Error())
 	}
-	return e
 }

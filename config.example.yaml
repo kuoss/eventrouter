@@ -3,7 +3,7 @@
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
 kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # stdout, http, s3sink, influxdb
+sink: stdout # stdout, http, s3sink, influxdb - or a list to use more than one at once
 enable-prometheus: true # exposes /metrics
 log-format: json # json, text (env: LOG_FORMAT)
 log-level: info # debug, info, warn, error (env: LOG_LEVEL)

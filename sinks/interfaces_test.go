@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestManufactureSink(t *testing.T) {
+func TestManufactureSinks(t *testing.T) {
 	t.Run("StdoutSink", func(t *testing.T) {
 		viper.Set("sink", "stdout")
-		sink := ManufactureSink()
-		require.NotNil(t, sink)
-		_, ok := sink.(*StdoutSink)
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		_, ok := got[0].(*StdoutSink)
 		require.True(t, ok, "Expected StdoutSink")
 	})
 
@@ -22,14 +22,24 @@ func TestManufactureSink(t *testing.T) {
 		viper.Set("http.bufferSize", 1500)
 		viper.Set("http.discardMessages", true)
 
-		sink := ManufactureSink()
-		require.NotNil(t, sink)
-		httpSink, ok := sink.(*HTTPSink)
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		httpSink, ok := got[0].(*HTTPSink)
 		require.True(t, ok, "Expected HTTPSink")
 
-		// Check if there's a method or public field to access the URL
-		// Assuming url is a public field in HTTPSink struct
 		require.Equal(t, "http://localhost", httpSink.SinkURL)
+	})
+
+	t.Run("MultipleSinks", func(t *testing.T) {
+		viper.Set("sink", []string{"stdout", "http"})
+		viper.Set("http.url", "http://localhost")
+
+		got := ManufactureSinks()
+		require.Len(t, got, 2)
+		_, ok := got[0].(*StdoutSink)
+		require.True(t, ok, "Expected StdoutSink first")
+		_, ok = got[1].(*HTTPSink)
+		require.True(t, ok, "Expected HTTPSink second")
 	})
 
 	t.Run("InvalidSink", func(t *testing.T) {
@@ -41,7 +51,7 @@ func TestManufactureSink(t *testing.T) {
 			}
 		}()
 
-		ManufactureSink()
+		ManufactureSinks()
 	})
 
 	// Additional tests for each sink type can be added below
