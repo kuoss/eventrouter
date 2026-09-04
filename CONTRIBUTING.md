@@ -11,6 +11,22 @@ Pull requests run the same lint and tests; `govulncheck` and the image scan run
 on a schedule instead (`.github/workflows/security.yml`), because their result
 depends on the vulnerability database rather than on the change.
 
+## Releasing
+
+Open a pull request that changes `VERSION` to the version you want to release,
+for example `0.5.0` (no `v`, and `0.5.0-rc1` for a pre-release). Merging it
+is the whole release:
+
+1. `.github/workflows/release.yml` picks up the change to `VERSION`
+2. the images are built for every supported platform and pushed to
+   `ghcr.io/kuoss/eventrouter:v0.5.0`, plus `:latest` unless it is a
+   pre-release
+3. `v0.5.0` is tagged and a GitHub release is opened with generated notes
+
+Nothing is tagged or pushed by hand, and the version is reviewable before it
+ships. The workflow refuses to run if the tag already exists, so re-merging
+something that leaves `VERSION` alone cannot republish a release.
+
 ## DCO Sign off
 
 All authors to the project retain copyright to their work. However, to ensure

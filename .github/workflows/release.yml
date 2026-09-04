@@ -1,17 +1,51 @@
 name: release
+
+# A release is cut by changing the VERSION file: merging that change tags the
+# commit, publishes the images and opens the GitHub release. Nothing has to be
+# pushed or tagged by hand.
 on:
   push:
-    tags:        
-    - 'v*'
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+
 permissions:
-  contents: read
-  packages: write
+  contents: write # create the tag and the release
+  packages: write # push to ghcr.io
 
 jobs:
-  docker-push:
+  release:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v7
+
+    - name: Read VERSION
+      id: version
+      run: |
+        version="$(tr -d '[:space:]' < VERSION)"
+        case "$version" in
+          [0-9]*.[0-9]*.[0-9]*) ;;
+          *) echo "::error::VERSION must look like 1.2.3 or 1.2.3-rc1, got '$version'"; exit 1 ;;
+        esac
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "tag=v$version" >> "$GITHUB_OUTPUT"
+        # A pre-release must not move :latest.
+        case "$version" in
+          *-*) echo "prerelease=true" >> "$GITHUB_OUTPUT" ;;
+          *)   echo "prerelease=false" >> "$GITHUB_OUTPUT" ;;
+        esac
+
+    # Re-running the workflow, or merging a change that leaves VERSION alone,
+    # must not try to publish an existing release a second time.
+    - name: Check the tag is new
+      run: |
+        if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null 2>&1; then
+          echo "::error::$TAG is already released"
+          exit 1
+        fi
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
 
     - uses: docker/setup-buildx-action@v4
 
@@ -27,8 +61,11 @@ jobs:
       uses: docker/metadata-action@v6
       with:
         images: ghcr.io/${{ github.repository }}
+        # The tag does not exist yet at this point, so the version comes from
+        # the VERSION file rather than from the git ref.
         tags: |
-          type=ref,event=tag
+          type=raw,value=${{ steps.version.outputs.tag }}
+          type=raw,value=latest,enable=${{ steps.version.outputs.prerelease == 'false' }}
 
     - name: Build and push Docker image
       uses: docker/build-push-action@v7
@@ -36,5 +73,17 @@ jobs:
         context: .
         platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
+        build-args: |
+          VERSION=${{ steps.version.outputs.version }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
+
+    # Last, so a failed build leaves no tag behind.
+    - name: Tag and release
+      run: |
+        gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes \
+          $( [ "$PRERELEASE" = true ] && echo --prerelease )
+      env:
+        TAG: ${{ steps.version.outputs.tag }}
+        PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
