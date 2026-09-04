@@ -21,10 +21,10 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	v1 "k8s.io/api/core/v1"
@@ -127,7 +127,7 @@ func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 		point, err = eventToPoint(eNew)
 	}
 	if err != nil {
-		glog.Warningf("Failed to convert event to point: %v", err)
+		slog.Warn("failed to convert event to point", "err", err)
 	}
 
 	point.AddTag("cluster_name", sink.config.ClusterName)
@@ -191,7 +191,7 @@ func (sink *InfluxDBSink) sendData(points []*write.Point) {
 
 	// Attempt to write the points
 	if err := writeAPI.WritePoint(context.Background(), points...); err != nil {
-		glog.Errorf("InfluxDB write failed: %v", err)
+		slog.Error("InfluxDB write failed", "err", err)
 		// Handle potential connection issues
 		if strings.Contains(err.Error(), dbNotFoundError) {
 			sink.dbExists = false

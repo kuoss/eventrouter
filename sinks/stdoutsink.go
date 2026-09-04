@@ -25,9 +25,9 @@ import (
 )
 
 // StdoutSink is the other basic sink
-// By default, Fluentd/ElasticSearch won't index glog formatted lines
-// By logging raw JSON to stdout, we will get automated indexing which
-// can be queried in Kibana.
+// By writing raw JSON events to stdout, we will get automated indexing which
+// can be queried in Kibana. Application logs are kept off stdout (they go to
+// stderr) so that this stream contains events only.
 type StdoutSink struct {
 	// TODO: create a channel and buffer for scaling
 	namespace string

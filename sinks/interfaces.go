@@ -18,8 +18,8 @@ package sinks
 
 import (
 	"errors"
+	"log/slog"
 
-	"github.com/golang/glog"
 	"github.com/spf13/viper"
 	v1 "k8s.io/api/core/v1"
 )
@@ -31,16 +31,10 @@ type EventSinkInterface interface {
 
 // ManufactureSink will manufacture a sink according to viper configs
 // TODO: Determine if it should return an array of sinks
-//
-// TODO: remove gocyclo:ignore
-//
-//gocyclo:ignore
 func ManufactureSink() (e EventSinkInterface) {
 	s := viper.GetString("sink")
-	glog.Infof("Sink is [%v]", s)
+	slog.Info("sink selected", "sink", s)
 	switch s {
-	case "glog":
-		e = NewGlogSink()
 	case "stdout":
 		viper.SetDefault("stdoutJSONNamespace", "")
 		stdoutNamespace := viper.GetString("stdoutJSONNamespace")
@@ -62,26 +56,6 @@ func ManufactureSink() (e EventSinkInterface) {
 		h := NewHTTPSink(url, overflow, bufferSize)
 		go h.Run(make(chan bool))
 		return h
-	case "kafka":
-		viper.SetDefault("kafkaBrokers", []string{"kafka:9092"})
-		viper.SetDefault("kafkaTopic", "eventrouter")
-		viper.SetDefault("kafkaAsync", true)
-		viper.SetDefault("kafkaRetryMax", 5)
-		viper.SetDefault("kafkaSaslUser", "")
-		viper.SetDefault("kafkaSaslPwd", "")
-
-		brokers := viper.GetStringSlice("kafkaBrokers")
-		topic := viper.GetString("kafkaTopic")
-		async := viper.GetBool("kakfkaAsync")
-		retryMax := viper.GetInt("kafkaRetryMax")
-		saslUser := viper.GetString("kafkaSaslUser")
-		saslPwd := viper.GetString("kafkaSaslPwd")
-
-		e, err := NewKafkaSink(brokers, topic, async, retryMax, saslUser, saslPwd)
-		if err != nil {
-			panic(err.Error())
-		}
-		return e
 	case "s3sink":
 		accessKeyID := viper.GetString("s3SinkAccessKeyID")
 		if accessKeyID == "" {
@@ -188,24 +162,6 @@ func ManufactureSink() (e EventSinkInterface) {
 			panic(err.Error())
 		}
 		return influx
-	case "eventhub":
-		connString := viper.GetString("eventHubConnectionString")
-		if connString == "" {
-			panic("eventhub sink specified but eventHubConnectionString not specified")
-		}
-		// By default we buffer up to 1500 events, and drop messages if more than
-		// 1500 have come in without getting consumed
-		viper.SetDefault("eventHubSinkBufferSize", 1500)
-		viper.SetDefault("eventHubSinkDiscardMessages", true)
-
-		bufferSize := viper.GetInt("eventHubSinkBufferSize")
-		overflow := viper.GetBool("eventHubSinkDiscardMessages")
-		eh, err := NewEventHubSink(connString, overflow, bufferSize)
-		if err != nil {
-			panic(err.Error())
-		}
-		go eh.Run(make(chan bool))
-		return eh
 	// case "logfile"
 	default:
 		err := errors.New("invalid Sink Specified")

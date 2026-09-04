@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -11,7 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/eapache/channels"
-	"github.com/golang/glog"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -108,7 +108,7 @@ loop:
 			var evt EventData
 			var ok bool
 			if evt, ok = e.(EventData); !ok {
-				glog.Warningf("Invalid type sent through event channel: %T", e)
+				slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
 				continue loop
 			}
 
@@ -123,7 +123,7 @@ loop:
 				if evt, ok = e.(EventData); ok {
 					arr = append(arr, evt)
 				} else {
-					glog.Warningf("Invalid type sent through event channel: %T", e)
+					slog.Warn("invalid type sent through event channel", "type", fmt.Sprintf("%T", e))
 				}
 			}
 
@@ -143,14 +143,14 @@ func (s *S3Sink) drainEvents(events []EventData) {
 			w, err := evt.WriteRFC5424(s.bodyBuf)
 			written += w
 			if err != nil {
-				glog.Warningf("Could not write to event request body (wrote %v) bytes: %v", written, err)
+				slog.Warn("could not write to event request body", "written", written, "err", err)
 				return
 			}
 		case "flatjson":
 			w, err := evt.WriteFlattenedJSON(s.bodyBuf)
 			written += w
 			if err != nil {
-				glog.Warningf("Could not write to event request body (wrote %v) bytes: %v", written, err)
+				slog.Warn("could not write to event request body", "written", written, "err", err)
 				return
 			}
 		default:
@@ -191,9 +191,9 @@ func (s *S3Sink) upload() {
 		Body:   s.bodyBuf,
 	})
 	if err != nil {
-		glog.Errorf("Error uploading %s to s3, %v", key, err)
+		slog.Error("error uploading to s3", "key", key, "err", err)
 	}
-	glog.Infof("Uploaded at %s", key)
+	slog.Info("uploaded to s3", "key", key)
 	s.lastUploadTimestamp = now.UnixNano()
 
 	s.bodyBuf.Truncate(0)

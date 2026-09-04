@@ -28,4 +28,24 @@ $ kubectl create -f https://raw.githubusercontent.com/kuoss/eventrouter/main/dep
 $ kubectl logs -f deployment/eventrouter -n kube-system 
 ``` 
 
+## Logging
+
+Events are written to **stdout** by the stdout sink (one JSON object per line).
+The application's own logs are structured ([log/slog][slog]) and go to
+**stderr**, so the two streams never get mixed.
+
+| config key   | env var      | default | values                          |
+| ------------ | ------------ | ------- | ------------------------------- |
+| `log-format` | `LOG_FORMAT` | `json`  | `json`, `text`                  |
+| `log-level`  | `LOG_LEVEL`  | `info`  | `debug`, `info`, `warn`, `error`|
+
+```
+$ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
+```
+
+> **Note:** the `glog` flags (`-v`, `-logtostderr`, `-log_dir`, ...) were removed
+> along with the `github.com/golang/glog` dependency. Passing them now makes the
+> binary exit with a flag parsing error - use `log-level`/`LOG_LEVEL` instead.
+
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
+[slog]: https://pkg.go.dev/log/slog "log/slog"

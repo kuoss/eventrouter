@@ -18,8 +18,8 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 
-	"github.com/golang/glog"
 	"github.com/kuoss/eventrouter/sinks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/spf13/viper"
@@ -111,7 +111,7 @@ func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformer
 		DeleteFunc: er.deleteEvent,
 	})
 	if err != nil {
-		glog.Errorf("AddEventHandler err: %v", err)
+		slog.Error("AddEventHandler failed", "err", err)
 	}
 	er.eLister = eventsInformer.Lister()
 	er.eListerSynched = eventsInformer.Informer().HasSynced
@@ -121,9 +121,9 @@ func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformer
 // Run starts the EventRouter/Controller.
 func (er *EventRouter) Run(stopCh <-chan struct{}) {
 	defer utilruntime.HandleCrash()
-	defer glog.Infof("Shutting down EventRouter")
+	defer slog.Info("shutting down EventRouter")
 
-	glog.Infof("Starting EventRouter")
+	slog.Info("starting EventRouter")
 
 	// here is where we kick the caches into gear
 	if !cache.WaitForCacheSync(stopCh, er.eListerSynched) {
@@ -193,7 +193,7 @@ func prometheusEvent(event *v1.Event) {
 
 	if err != nil {
 		// Not sure this is the right place to log this error?
-		glog.Warning(err)
+		slog.Warn("could not get event counter", "err", err)
 	} else {
 		counter.Add(1)
 	}
@@ -203,10 +203,10 @@ func prometheusEvent(event *v1.Event) {
 func (er *EventRouter) deleteEvent(obj interface{}) {
 	e, err := toEventPointer(obj)
 	if err != nil {
-		glog.Warningf("toEventPointer err: %s", err.Error())
+		slog.Warn("toEventPointer failed", "err", err)
 		return
 	}
-	glog.V(5).Infof("Event Deleted from the system:\n%v", e)
+	slog.Debug("event deleted from the system", "event", e)
 }
 
 func toEventPointer(obj interface{}) (*v1.Event, error) {

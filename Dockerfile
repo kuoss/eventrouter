@@ -1,5 +1,5 @@
 # build stage
-FROM golang:1.24 AS builder
+FROM golang:1.25 AS builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download -x
@@ -14,4 +14,4 @@ COPY docs/config.json /etc/eventrouter/config.json
 
 USER nobody
 
-CMD ["/app/eventrouter", "-v", "3", "-logtostderr"]
+CMD ["/app/eventrouter"]

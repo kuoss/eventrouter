@@ -19,6 +19,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,7 +27,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/golang/glog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 
@@ -52,7 +52,7 @@ func sigHandler() <-chan struct{} {
 			syscall.SIGILL,  // illegal instruction
 			syscall.SIGFPE)  // floating point - this is why we can't have nice things
 		sig := <-c
-		glog.Warningf("Signal (%v) Detected, Shutting Down", sig)
+		slog.Warn("signal detected, shutting down", "signal", sig)
 		close(stop)
 	}()
 	return stop
@@ -72,9 +72,11 @@ func loadConfig() (kubernetes.Interface, error) {
 	viper.AddConfigPath("/etc/eventrouter/")
 	viper.AddConfigPath(".")
 	viper.SetDefault("kubeconfig", "")
-	viper.SetDefault("sink", "glog")
+	viper.SetDefault("sink", "stdout")
 	viper.SetDefault("resync-interval", time.Minute*30)
 	viper.SetDefault("enable-prometheus", true)
+	viper.SetDefault("log-format", "json")
+	viper.SetDefault("log-level", "info")
 
 	err = viper.ReadInConfig()
 	if err != nil {
@@ -85,6 +87,18 @@ func loadConfig() (kubernetes.Interface, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BindEnv err: %w", err)
 	}
+
+	// Allows LOG_FORMAT/LOG_LEVEL to override the config file, so verbosity can
+	// be changed without editing the ConfigMap.
+	err = viper.BindEnv("log-format", "LOG_FORMAT")
+	if err != nil {
+		return nil, fmt.Errorf("BindEnv err: %w", err)
+	}
+	err = viper.BindEnv("log-level", "LOG_LEVEL")
+	if err != nil {
+		return nil, fmt.Errorf("BindEnv err: %w", err)
+	}
+	setupLogging(viper.GetString("log-format"), viper.GetString("log-level"))
 
 	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env var
 	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
@@ -117,7 +131,7 @@ func main() {
 
 	clientset, err := loadConfig()
 	if err != nil {
-		glog.Errorf("loadConfig err: %v", err)
+		slog.Error("loadConfig failed", "err", err)
 		os.Exit(1)
 	}
 	sharedInformers := informers.NewSharedInformerFactory(clientset, viper.GetDuration("resync-interval"))
@@ -130,9 +144,9 @@ func main() {
 	// Startup the http listener for Prometheus Metrics endpoint.
 	if viper.GetBool("enable-prometheus") {
 		go func() {
-			glog.Info("Starting prometheus metrics.")
+			slog.Info("starting prometheus metrics", "address", *addr)
 			http.Handle("/metrics", promhttp.Handler())
-			glog.Warning(http.ListenAndServe(*addr, nil))
+			slog.Error("prometheus metrics listener stopped", "err", http.ListenAndServe(*addr, nil))
 		}()
 	}
 
@@ -144,9 +158,9 @@ func main() {
 	}()
 
 	// Startup the Informer(s)
-	glog.Infof("Starting shared Informer(s)")
+	slog.Info("starting shared informer(s)")
 	sharedInformers.Start(stop)
 	wg.Wait()
-	glog.Warningf("Exiting main()")
+	slog.Warn("exiting main()")
 	os.Exit(1)
 }
