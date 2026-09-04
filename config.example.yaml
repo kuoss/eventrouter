@@ -2,22 +2,20 @@
 # shown, so this whole file is optional. Copy to config.yaml and edit, or
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
-kubeconfig: "" # kubeconfig path; empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # which block below is read: http, s3sink, influxdb (stdout takes no settings)
+kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
+sink: stdout # stdout, http, s3sink, influxdb
 enable-prometheus: true # exposes /metrics
 log-format: json # json, text (env: LOG_FORMAT)
 log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 
-# stdout (the default) writes one JSON object per line and takes no settings
-# of its own, so there is nothing to uncomment for it. Uncomment the block
-# matching `sink` above for any other sink and fill it in - the rest are
-# ignored either way.
+# stdout (the default) takes no settings. Uncomment the block matching
+# `sink` above for any other sink and fill it in.
 
 # --- sink: http --- POSTs RFC5424-framed events to an HTTP endpoint
 # http:
 #   url: "" # required
-#   bufferSize: 1500 # events buffered before...
-#   discardMessages: true # ...dropping (true) or blocking the watch (false)
+#   bufferSize: 1500 # events buffered before dropping (discardMessages: true) or blocking
+#   discardMessages: true
 
 # --- sink: s3sink --- batches events and uploads them to an S3 bucket
 # s3sink:
@@ -26,7 +24,7 @@ log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 #   region: ""
 #   bucket: ""
 #   bucketDir: ""
-#   outputFormat: rfc5424 # rfc5424, flatjson (flatjson suits Redshift-style loaders)
+#   outputFormat: rfc5424 # rfc5424, flatjson
 #   bufferSize: 1500
 #   discardMessages: true
 #   uploadInterval: 120 # seconds between uploads
