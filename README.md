@@ -84,6 +84,15 @@ The application's own logs are structured ([log/slog][slog]) and go to
 **stderr**, so the two streams never get mixed. `log-format`/`log-level`
 control the latter - see the [Configuration](#configuration) table above.
 
+Every sink writes each event as `{"verb": "ADDED"|"UPDATED", "event": <the
+Kubernetes Event>}` - `ADDED` the first time eventrouter sees it, `UPDATED` on
+a repeat (kubelet bumps `count`/`lastTimestamp` on the same object; an
+events.k8s.io/v1 reporter attaches a `series` instead - see
+[Event APIs](#event-apis)). There is no `old_event`/before-snapshot: a
+repeat's own fields already say what changed. See
+[`tests/sample/pod-log.ndjson`][sample-log] for a real ADDED/UPDATED pair from
+each API shape.
+
 ```
 $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 ```
@@ -96,3 +105,4 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 [slog]: https://pkg.go.dev/log/slog "log/slog"
 [deploy-manifest]: deploy/deploy.yaml "deployment manifest"
 [config-example]: config.example.yaml "annotated config reference"
+[sample-log]: tests/sample/pod-log.ndjson "sample pod log"
