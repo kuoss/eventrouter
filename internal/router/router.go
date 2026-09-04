@@ -26,6 +26,7 @@ import (
 	"github.com/kuoss/eventrouter/internal/kubeevent"
 	"github.com/kuoss/eventrouter/sinks"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	v1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -58,8 +59,14 @@ var (
 		"eventrouter_unknown_total", "Total number of events of unknown type in the kubernetes cluster")
 )
 
+// newEventCounterVec registers the vec with the default registry as a side
+// effect (promauto's whole purpose): a package-level var initializer runs
+// exactly once, guaranteed by the Go runtime, so unlike registering from
+// inside NewEventRouter - callable more than once in the same process, in
+// principle - there is no call path that could ever register the same vec
+// twice and panic.
 func newEventCounterVec(name, help string) *prometheus.CounterVec {
-	return prometheus.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, eventCounterLabels)
+	return promauto.NewCounterVec(prometheus.CounterOpts{Name: name, Help: help}, eventCounterLabels)
 }
 
 // EventRouter is responsible for maintaining a stream of kubernetes
@@ -81,13 +88,6 @@ type EventRouter struct {
 
 // NewEventRouter will create a new event router using the input params
 func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformers.EventInformer) *EventRouter {
-	if config.PrometheusEnabled() {
-		prometheus.MustRegister(kubernetesWarningEventCounterVec)
-		prometheus.MustRegister(kubernetesNormalEventCounterVec)
-		prometheus.MustRegister(kubernetesInfoEventCounterVec)
-		prometheus.MustRegister(kubernetesUnknownEventCounterVec)
-	}
-
 	er := &EventRouter{
 		kubeClient: kubeClient,
 		eSink:      sinks.ManufactureSink(),
