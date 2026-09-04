@@ -34,6 +34,8 @@ metadata:
   labels:
     app: eventrouter
 spec:
+  # No leader election (see main.go's TODO) - raising this duplicates
+  # every event instead of adding capacity.
   replicas: 1
   selector:
     matchLabels:

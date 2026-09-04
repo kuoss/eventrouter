@@ -80,7 +80,8 @@ type EventRouter struct {
 	eListerSynched cache.InformerSynced
 
 	// event sink
-	// TODO: Determine if we want to support multiple sinks.
+	// TODO: support multiple sinks at once? ManufactureSink would need to
+	// return a slice.
 	eSink sinks.EventSinkInterface
 }
 

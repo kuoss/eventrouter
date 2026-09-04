@@ -30,10 +30,8 @@ type EventSinkInterface interface {
 }
 
 // ManufactureSink builds the sink named by the "sink" config key, reading
-// that sink's settings (if it has any) from the nested block of the same
-// name (e.g. "sink: http" reads its settings from the "http:" block) - see
-// config.example.yaml.
-// TODO: Determine if it should return an array of sinks
+// its settings from the matching nested block (e.g. "sink: http" reads
+// "http:") - see config.example.yaml. Returns a single sink.
 func ManufactureSink() (e EventSinkInterface) {
 	s := viper.GetString("sink")
 	slog.Info("sink selected", "sink", s)
