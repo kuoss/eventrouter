@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"os"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // StdoutSink is the other basic sink
@@ -37,7 +37,7 @@ func NewStdoutSink() EventSinkInterface {
 }
 
 // UpdateEvents implements the EventSinkInterface
-func (gs *StdoutSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
+func (gs *StdoutSink) UpdateEvents(eNew *corev1.Event, eOld *corev1.Event) {
 	eData := NewEventData(eNew, eOld)
 	if eJSONBytes, err := json.Marshal(eData); err == nil {
 		fmt.Println(string(eJSONBytes))

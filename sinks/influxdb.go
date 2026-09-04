@@ -28,7 +28,7 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/kuoss/eventrouter/internal/kubeevent"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 var (
@@ -72,7 +72,7 @@ type LabelDescriptor struct {
 }
 
 type InfluxDBSinkInterface interface {
-	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
+	UpdateEvents(eNew *corev1.Event, eOld *corev1.Event)
 	sendData(points []*write.Point)
 }
 
@@ -116,7 +116,7 @@ func NewInfluxdbSink(cfg InfluxdbConfig) (InfluxDBSinkInterface, error) {
 	}, nil
 }
 
-func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
+func (sink *InfluxDBSink) UpdateEvents(eNew *corev1.Event, eOld *corev1.Event) {
 	sink.Lock()
 	defer sink.Unlock()
 
@@ -136,7 +136,7 @@ func (sink *InfluxDBSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
 	sink.sendData([]*write.Point{point})
 }
 
-func getEventValue(event *v1.Event) (string, error) {
+func getEventValue(event *corev1.Event) (string, error) {
 	bytes, err := json.MarshalIndent(event, "", " ")
 	if err != nil {
 		return "", err
@@ -144,7 +144,7 @@ func getEventValue(event *v1.Event) (string, error) {
 	return string(bytes), nil
 }
 
-func eventToPointWithFields(event *v1.Event) (*write.Point, error) {
+func eventToPointWithFields(event *corev1.Event) (*write.Point, error) {
 	tags := map[string]string{
 		eventUID:               string(event.UID),
 		"message":              event.Message,
@@ -164,7 +164,7 @@ func eventToPointWithFields(event *v1.Event) (*write.Point, error) {
 	return influxdb2.NewPoint("events", tags, fields, ts), nil
 }
 
-func eventToPoint(event *v1.Event) (*write.Point, error) {
+func eventToPoint(event *corev1.Event) (*write.Point, error) {
 	value, err := getEventValue(event)
 	if err != nil {
 		return nil, err

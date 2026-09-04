@@ -34,7 +34,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	ref "k8s.io/client-go/tools/reference"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestUpdateEvents_httpsink(t *testing.T) {
@@ -112,7 +112,7 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	testPod := &v1.Pod{
+	testPod := &corev1.Pod{
 		TypeMeta: metav1.TypeMeta{
 			Kind: "Pod",
 		},
@@ -121,12 +121,12 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 			Namespace: "baz",
 			UID:       "bar",
 		},
-		Spec: v1.PodSpec{},
+		Spec: corev1.PodSpec{},
 	}
 	podRef, err := ref.GetReference(scheme.Scheme, testPod)
 	require.NoError(t, err)
 
-	evt := makeFakeEvent(podRef, v1.EventTypeWarning, "CreateInCluster", "Fake pod creation event")
+	evt := makeFakeEvent(podRef, corev1.EventTypeWarning, "CreateInCluster", "Fake pod creation event")
 
 	// 1. Try with a synchronous channel
 	sink := NewHTTPSink(srv.URL, false, 0)
@@ -208,11 +208,11 @@ func TestUpdateEvents_httpsink(t *testing.T) {
 	}
 }
 
-func makeFakeEvent(ref *v1.ObjectReference, eventtype, reason, message string) *v1.Event {
+func makeFakeEvent(ref *corev1.ObjectReference, eventtype, reason, message string) *corev1.Event {
 	tm := metav1.Time{
 		Time: time.Now(),
 	}
-	return &v1.Event{
+	return &corev1.Event{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%v.%x", ref.Name, tm.UnixNano()),
 			Namespace: ref.Namespace,

@@ -8,7 +8,7 @@ import (
 
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // Mock server for InfluxDB
@@ -90,7 +90,7 @@ func TestEventToPointTagsAndTime(t *testing.T) {
 
 	testCases := []struct {
 		name          string
-		event         *v1.Event
+		event         *corev1.Event
 		wantComponent string
 		wantHostname  string
 	}{

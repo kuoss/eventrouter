@@ -22,7 +22,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type settings struct{ values map[string]any }
@@ -82,7 +82,7 @@ func (s *settings) GetInt(k string) int {
 
 // EventSinkInterface is the interface used to shunt events
 type EventSinkInterface interface {
-	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
+	UpdateEvents(eNew *corev1.Event, eOld *corev1.Event)
 }
 
 // ManufactureSinks builds every sink named in the "sinks" config key: a

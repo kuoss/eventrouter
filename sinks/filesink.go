@@ -5,7 +5,7 @@ import (
 	"log/slog"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // FileSink writes one JSON event per line to a local file, the way
@@ -47,7 +47,7 @@ func NewFileSink(cfg FileSinkConfig) EventSinkInterface {
 }
 
 // UpdateEvents implements the EventSinkInterface
-func (f *FileSink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
+func (f *FileSink) UpdateEvents(eNew *corev1.Event, eOld *corev1.Event) {
 	eData := NewEventData(eNew, eOld)
 	line, err := json.Marshal(eData)
 	if err != nil {

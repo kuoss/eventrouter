@@ -9,10 +9,10 @@ import (
 	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
-func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
+func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *corev1.Event {
 	if firstTime == nil {
 		firstTime = new(time.Now())
 	}
@@ -23,7 +23,7 @@ func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Ev
 	return kubeeventtest.CoreAPIEvent(
 		kubeeventtest.WithName(name),
 		kubeeventtest.WithUID("12345"),
-		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithInvolvedObject(corev1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
 		kubeeventtest.WithReason(reason),
 		kubeeventtest.WithMessage("Successfully assigned test-pod to node-1"),
 		kubeeventtest.WithTimes(*firstTime, *lastTime),
@@ -87,11 +87,11 @@ func TestWriteFlattenedJSON(t *testing.T) {
 // over core/v1 when its reporter wrote it through events.k8s.io/v1: no source
 // and no first/last timestamp, with eventTime and the reporting fields
 // carrying the information instead.
-func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *v1.Event {
+func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *corev1.Event {
 	return kubeeventtest.EventsAPIEvent(
 		kubeeventtest.WithName(name),
 		kubeeventtest.WithUID("12345"),
-		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithInvolvedObject(corev1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
 		kubeeventtest.WithReason(reason),
 		kubeeventtest.WithMessage("Successfully assigned default/test-pod to node-1"),
 		kubeeventtest.WithEventTime(eventTime),
@@ -107,7 +107,7 @@ func TestWriteRFC5424Header(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		event        *v1.Event
+		event        *corev1.Event
 		wantHostname string
 		wantAppName  string
 	}{

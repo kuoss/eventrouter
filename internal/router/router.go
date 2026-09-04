@@ -28,7 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -129,7 +129,7 @@ func (er *EventRouter) Run(stopCh <-chan struct{}) {
 
 // addEvent is called when an event is created, or during the initial list
 func (er *EventRouter) addEvent(obj interface{}) {
-	e := obj.(*v1.Event)
+	e := obj.(*corev1.Event)
 	prometheusEvent(e)
 	for _, sink := range er.eSinks {
 		sink.UpdateEvents(e, nil)
@@ -138,8 +138,8 @@ func (er *EventRouter) addEvent(obj interface{}) {
 
 // updateEvent is called any time there is an update to an existing event
 func (er *EventRouter) updateEvent(objOld interface{}, objNew interface{}) {
-	eOld := objOld.(*v1.Event)
-	eNew := objNew.(*v1.Event)
+	eOld := objOld.(*corev1.Event)
+	eNew := objNew.(*corev1.Event)
 	prometheusEvent(eNew)
 	for _, sink := range er.eSinks {
 		sink.UpdateEvents(eNew, eOld)
@@ -147,7 +147,7 @@ func (er *EventRouter) updateEvent(objOld interface{}, objNew interface{}) {
 }
 
 // prometheusEvent is called when an event is added or updated
-func prometheusEvent(event *v1.Event) {
+func prometheusEvent(event *corev1.Event) {
 	if !config.PrometheusEnabled() {
 		return
 	}
@@ -191,16 +191,16 @@ func (er *EventRouter) deleteEvent(obj interface{}) {
 	slog.Debug("event deleted from the system", "event", e)
 }
 
-// toEventPointer extracts the *v1.Event from a raw informer object. When the
+// toEventPointer extracts the *corev1.Event from a raw informer object. When the
 // informer misses a delete (a disconnect, for one) it hands DeleteFunc a
 // cache.DeletedFinalStateUnknown holding only the last object it knew about,
 // instead of the object itself; unwrap that first; the way client-go's own
 // controllers do, so a recoverable delete is not reported as an error.
-func toEventPointer(obj interface{}) (*v1.Event, error) {
+func toEventPointer(obj interface{}) (*corev1.Event, error) {
 	if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 		obj = tombstone.Obj
 	}
-	e, ok := obj.(*v1.Event)
+	e, ok := obj.(*corev1.Event)
 	if !ok {
 		return nil, fmt.Errorf("unexpected type: %T", obj)
 	}

@@ -8,15 +8,15 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 func TestFileSink_UpdateEvents(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "event.log")
 	sink := NewFileSink(FileSinkConfig{Path: path})
 
-	sink.UpdateEvents(&v1.Event{Reason: "hello"}, nil)
-	sink.UpdateEvents(&v1.Event{Reason: "world"}, &v1.Event{Reason: "hello"})
+	sink.UpdateEvents(&corev1.Event{Reason: "hello"}, nil)
+	sink.UpdateEvents(&corev1.Event{Reason: "world"}, &corev1.Event{Reason: "hello"})
 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)

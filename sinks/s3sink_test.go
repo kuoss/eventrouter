@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // MockUploader struct fulfills the IUploader interface for testing
@@ -28,7 +28,7 @@ func TestS3Sink_Upload(t *testing.T) {
 	s3Sink.uploader = mockUploader
 
 	// Create a mock event
-	event := &v1.Event{
+	event := &corev1.Event{
 		Message: "Test event",
 	}
 

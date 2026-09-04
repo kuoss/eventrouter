@@ -13,7 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 type IUploader interface {
@@ -86,7 +86,7 @@ func NewS3Sink(awsAccessKeyID string, s3SinkSecretAccessKey string, s3SinkRegion
 // UpdateEvents implements the EventSinkInterface. If overflow is set, this
 // never blocks: events beyond the channel's buffer are discarded. Otherwise
 // it blocks once the buffer is full, applying backpressure to the caller.
-func (s *S3Sink) UpdateEvents(eNew *v1.Event, eOld *v1.Event) {
+func (s *S3Sink) UpdateEvents(eNew *corev1.Event, eOld *corev1.Event) {
 	evt := NewEventData(eNew, eOld)
 	if s.overflow {
 		select {
