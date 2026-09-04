@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,21 +21,14 @@ var (
 // the legacy recorder, so source and the timestamps are filled in and the
 // reporting fields are empty.
 func coreAPIEvent() *corev1.Event {
-	return &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              "test-pod.18d1b5694b849758",
-			Namespace:         "default",
-			CreationTimestamp: metav1.Time{Time: created},
-		},
-		InvolvedObject: corev1.ObjectReference{Kind: "Pod", Name: "test-pod", Namespace: "default"},
-		Reason:         "Started",
-		Message:        "Started container app",
-		Source:         corev1.EventSource{Component: "kubelet", Host: "node-1"},
-		FirstTimestamp: metav1.Time{Time: first},
-		LastTimestamp:  metav1.Time{Time: last},
-		Count:          2,
-		Type:           "Normal",
-	}
+	return kubeeventtest.CoreAPIEvent(
+		kubeeventtest.WithName("test-pod.18d1b5694b849758"),
+		kubeeventtest.WithCreationTimestamp(created),
+		kubeeventtest.WithReason("Started"),
+		kubeeventtest.WithMessage("Started container app"),
+		kubeeventtest.WithTimes(first, last),
+		kubeeventtest.WithCount(2),
+	)
 }
 
 // eventsAPIEvent is the same shape the API server returns over core/v1 for an
@@ -43,21 +37,15 @@ func coreAPIEvent() *corev1.Event {
 // eventTime and the reporting fields carry the information instead. The values
 // are copied from a real event on a v1.36 cluster.
 func eventsAPIEvent() *corev1.Event {
-	return &corev1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:              "windows-exporter-7w6wh.18d20aa86bd78a46",
-			Namespace:         "kube-system",
-			CreationTimestamp: metav1.Time{Time: created},
-		},
-		InvolvedObject:      corev1.ObjectReference{Kind: "Pod", Name: "windows-exporter-7w6wh", Namespace: "kube-system"},
-		Reason:              "Scheduled",
-		Message:             "Successfully assigned kube-system/windows-exporter-7w6wh to node-1",
-		EventTime:           metav1.MicroTime{Time: first},
-		Action:              "Binding",
-		ReportingController: "default-scheduler",
-		ReportingInstance:   "default-scheduler-kube-scheduler-7b4d95d8bc-9gv7t",
-		Type:                "Normal",
-	}
+	return kubeeventtest.EventsAPIEvent(
+		kubeeventtest.WithName("windows-exporter-7w6wh.18d20aa86bd78a46"),
+		kubeeventtest.WithNamespace("kube-system"),
+		kubeeventtest.WithInvolvedObject(corev1.ObjectReference{Kind: "Pod", Name: "windows-exporter-7w6wh", Namespace: "kube-system"}),
+		kubeeventtest.WithCreationTimestamp(created),
+		kubeeventtest.WithReason("Scheduled"),
+		kubeeventtest.WithMessage("Successfully assigned kube-system/windows-exporter-7w6wh to node-1"),
+		kubeeventtest.WithEventTime(first),
+	)
 }
 
 func TestComponent(t *testing.T) {

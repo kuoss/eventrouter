@@ -6,20 +6,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/kuoss/eventrouter/sinks/rfc5424"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 )
 
 func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Event {
-	if name == "" {
-		name = "hello"
-	}
-	if reason == "" {
-		reason = "world"
-	}
 	if firstTime == nil {
 		firstTime = ptr.To(time.Now())
 	}
@@ -27,23 +21,14 @@ func createTestEvent(name, reason string, firstTime, lastTime *time.Time) *v1.Ev
 		lastTime = ptr.To(time.Now())
 	}
 
-	return &v1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: "default",
-			UID:       "12345",
-		},
-		InvolvedObject: v1.ObjectReference{
-			Kind: "Pod",
-			UID:  "pod12345",
-		},
-		Reason:         reason,
-		Message:        "Successfully assigned test-pod to node-1",
-		Source:         v1.EventSource{Component: "kubelet", Host: "node-1"},
-		FirstTimestamp: metav1.Time{Time: *firstTime},
-		LastTimestamp:  metav1.Time{Time: *lastTime},
-		Type:           "Normal",
-	}
+	return kubeeventtest.CoreAPIEvent(
+		kubeeventtest.WithName(name),
+		kubeeventtest.WithUID("12345"),
+		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithMessage("Successfully assigned test-pod to node-1"),
+		kubeeventtest.WithTimes(*firstTime, *lastTime),
+	)
 }
 
 func zeroDatetime(input string) string {
@@ -104,21 +89,14 @@ func TestWriteFlattenedJSON(t *testing.T) {
 // and no first/last timestamp, with eventTime and the reporting fields
 // carrying the information instead.
 func createTestEventsAPIEvent(name, reason string, eventTime time.Time) *v1.Event {
-	return &v1.Event{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: "default",
-			UID:       "12345",
-		},
-		InvolvedObject:      v1.ObjectReference{Kind: "Pod", UID: "pod12345"},
-		Reason:              reason,
-		Message:             "Successfully assigned default/test-pod to node-1",
-		EventTime:           metav1.MicroTime{Time: eventTime},
-		Action:              "Binding",
-		ReportingController: "default-scheduler",
-		ReportingInstance:   "default-scheduler-kube-scheduler-7b4d95d8bc-9gv7t",
-		Type:                "Normal",
-	}
+	return kubeeventtest.EventsAPIEvent(
+		kubeeventtest.WithName(name),
+		kubeeventtest.WithUID("12345"),
+		kubeeventtest.WithInvolvedObject(v1.ObjectReference{Kind: "Pod", UID: "pod12345"}),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithMessage("Successfully assigned default/test-pod to node-1"),
+		kubeeventtest.WithEventTime(eventTime),
+	)
 }
 
 // TestWriteRFC5424Header checks the syslog header for both flavours of event.

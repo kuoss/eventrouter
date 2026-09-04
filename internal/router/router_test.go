@@ -1,16 +1,16 @@
-package main
+package router
 
 import (
 	"fmt"
 	"testing"
 	"time"
 
+	"github.com/kuoss/eventrouter/internal/kubeevent/kubeeventtest"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -124,31 +124,24 @@ func TestToEventPointer(t *testing.T) {
 // coreAPIEvent is an event as a core/v1 reporter writes it: source and the
 // timestamps are filled in, the reporting fields are empty.
 func coreAPIEvent(eventType, reason string) *v1.Event {
-	return &v1.Event{
-		ObjectMeta:     metav1.ObjectMeta{Name: "test-pod.18d1b5694b849758", Namespace: "default"},
-		InvolvedObject: v1.ObjectReference{Kind: "Pod", Name: "test-pod", Namespace: "default"},
-		Reason:         reason,
-		Source:         v1.EventSource{Component: "kubelet", Host: "node-1"},
-		FirstTimestamp: metav1.Time{Time: testTime},
-		LastTimestamp:  metav1.Time{Time: testTime},
-		Type:           eventType,
-	}
+	return kubeeventtest.CoreAPIEvent(
+		kubeeventtest.WithName("test-pod.18d1b5694b849758"),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithTimes(testTime, testTime),
+		kubeeventtest.WithType(eventType),
+	)
 }
 
 // eventsAPIEvent is what the API server returns over core/v1 for an event its
 // reporter wrote through events.k8s.io/v1: no source and no timestamps, with
 // eventTime and the reporting fields carrying the information instead.
 func eventsAPIEvent(eventType, reason string) *v1.Event {
-	return &v1.Event{
-		ObjectMeta:          metav1.ObjectMeta{Name: "test-pod.18d20aa86bd78a46", Namespace: "default"},
-		InvolvedObject:      v1.ObjectReference{Kind: "Pod", Name: "test-pod", Namespace: "default"},
-		Reason:              reason,
-		EventTime:           metav1.MicroTime{Time: testTime},
-		Action:              "Binding",
-		ReportingController: "default-scheduler",
-		ReportingInstance:   "default-scheduler-kube-scheduler-7b4d95d8bc-9gv7t",
-		Type:                eventType,
-	}
+	return kubeeventtest.EventsAPIEvent(
+		kubeeventtest.WithName("test-pod.18d20aa86bd78a46"),
+		kubeeventtest.WithReason(reason),
+		kubeeventtest.WithEventTime(testTime),
+		kubeeventtest.WithType(eventType),
+	)
 }
 
 func TestPrometheusEvent(t *testing.T) {

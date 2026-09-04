@@ -27,6 +27,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/kuoss/eventrouter/internal/logging"
+	"github.com/kuoss/eventrouter/internal/router"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/viper"
 
@@ -103,7 +105,7 @@ func loadConfig() (kubernetes.Interface, error) {
 	if err != nil {
 		return nil, fmt.Errorf("BindEnv err: %w", err)
 	}
-	setupLogging(viper.GetString("log-format"), viper.GetString("log-level"))
+	logging.Setup(viper.GetString("log-format"), viper.GetString("log-level"))
 
 	// Allow specifying a custom config file via the EVENTROUTER_CONFIG env var
 	if forceCfg := os.Getenv("EVENTROUTER_CONFIG"); forceCfg != "" {
@@ -150,7 +152,7 @@ func main() {
 	eventsInformer := sharedInformers.Core().V1().Events()
 
 	// TODO: Support locking for HA https://github.com/kubernetes/kubernetes/pull/42666
-	eventRouter := NewEventRouter(clientset, eventsInformer)
+	eventRouter := router.NewEventRouter(clientset, eventsInformer)
 	stop := sigHandler()
 
 	// Startup the http listener for Prometheus Metrics endpoint.

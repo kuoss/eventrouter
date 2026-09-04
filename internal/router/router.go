@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+// Package router watches the Kubernetes event stream and hands each event to
+// the Prometheus counters and the configured sink.
+package router
 
 import (
 	"fmt"

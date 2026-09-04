@@ -30,8 +30,9 @@ limitations under the License.
 //
 // Reading those fields directly therefore yields an empty component and a zero
 // timestamp for every event from a reporter that has migrated (the scheduler,
-// for one). The helpers here read whichever field is populated, so callers do
-// not have to care which API the reporter used.
+// for one). Component and Timestamp read whichever field is populated, so
+// callers do not have to care which API the reporter used; Host does not fall
+// back, for the reason given on its own doc.
 package kubeevent
 
 import (
