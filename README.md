@@ -84,6 +84,11 @@ An explicit `sinks: []` means zero sinks - eventrouter still runs and counts
 events for `/metrics`, but forwards none of them anywhere, and says so in
 its own logs on startup rather than doing it silently.
 
+If `sinks` is omitted or set to `null`, it defaults to one `stdout` sink. The
+value must otherwise be a list of sink objects: scalar values such as
+`sinks: stdout`, lists of names such as `sinks: [stdout]`, or non-object list
+entries are invalid configuration and stop startup with an error.
+
 ## Event APIs
 
 Kubernetes serves events under two API groups. The original `core/v1` Event is
