@@ -1,6 +1,7 @@
 package sinks
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/viper"
@@ -28,6 +29,16 @@ func TestManufactureSinks(t *testing.T) {
 		require.True(t, ok, "Expected HTTPSink")
 
 		require.Equal(t, "http://localhost", httpSink.SinkURL)
+	})
+
+	t.Run("FileSink", func(t *testing.T) {
+		viper.Set("sink", "filesink")
+		viper.Set("filesink.path", filepath.Join(t.TempDir(), "events.log"))
+
+		got := ManufactureSinks()
+		require.Len(t, got, 1)
+		_, ok := got[0].(*FileSink)
+		require.True(t, ok, "Expected FileSink")
 	})
 
 	t.Run("MultipleSinks", func(t *testing.T) {

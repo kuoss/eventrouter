@@ -190,7 +190,19 @@ func manufactureSink(name string) EventSinkInterface {
 			panic(err.Error())
 		}
 		return influx
-	// case "logfile"
+	case "filesink":
+		path := viper.GetString("filesink.path")
+		if path == "" {
+			panic("filesink specified but filesink.path not specified")
+		}
+
+		return NewFileSink(FileSinkConfig{
+			Path:       path,
+			MaxSize:    viper.GetInt("filesink.maxSize"),
+			MaxBackups: viper.GetInt("filesink.maxBackups"),
+			MaxAge:     viper.GetInt("filesink.maxAge"),
+			Compress:   viper.GetBool("filesink.compress"),
+		})
 	default:
 		err := errors.New("invalid Sink Specified")
 		panic(err.Error())

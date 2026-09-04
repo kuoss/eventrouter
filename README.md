@@ -61,7 +61,7 @@ fails startup; a missing one does not.
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, or a list of these            |
+| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, `filesink`, or a list of these |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
 | `log-format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
 | `log-level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |

@@ -3,7 +3,7 @@
 # mount just what you need as a ConfigMap - see deploy/deploy.yaml.
 
 kubeconfig: "" # empty uses the in-cluster service account (env: KUBECONFIG)
-sink: stdout # stdout, http, s3sink, influxdb - or a list to use more than one at once
+sink: stdout # stdout, http, s3sink, influxdb, filesink - or a list to use more than one at once
 enable-prometheus: true # exposes /metrics
 log-format: json # json, text (env: LOG_FORMAT)
 log-level: info # debug, info, warn, error (env: LOG_LEVEL)
@@ -42,3 +42,11 @@ log-level: info # debug, info, warn, error (env: LOG_LEVEL)
 #   clusterName: default
 #   disableCounterMetrics: false
 #   concurrency: 1
+
+# --- sink: filesink --- writes one JSON event per line to a local file, rotated
+# filesink:
+#   path: "" # required
+#   maxSize: 100 # megabytes before rotating (0 defaults to 100)
+#   maxBackups: 100 # rotated files to keep (0 = unlimited)
+#   maxAge: 366 # days to keep rotated files (0 = unlimited)
+#   compress: true # gzip rotated files
