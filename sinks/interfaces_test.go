@@ -11,7 +11,8 @@ import (
 func TestManufactureSinks(t *testing.T) {
 	t.Run("StdoutSink", func(t *testing.T) {
 		viper.Reset()
-		viper.Set("sink", "stdout")
+		viper.Set("sinks", []map[string]interface{}{{"type": "stdout"}})
+
 		got := ManufactureSinks()
 		require.Len(t, got, 1)
 		_, ok := got[0].(*StdoutSink)
@@ -20,10 +21,9 @@ func TestManufactureSinks(t *testing.T) {
 
 	t.Run("HTTPSink", func(t *testing.T) {
 		viper.Reset()
-		viper.Set("sink", "http")
-		viper.Set("http.url", "http://localhost")
-		viper.Set("http.bufferSize", 1500)
-		viper.Set("http.discardMessages", true)
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "http", "url": "http://localhost", "bufferSize": 1500, "discardMessages": true},
+		})
 
 		got := ManufactureSinks()
 		require.Len(t, got, 1)
@@ -35,8 +35,9 @@ func TestManufactureSinks(t *testing.T) {
 
 	t.Run("FileSink", func(t *testing.T) {
 		viper.Reset()
-		viper.Set("sink", "filesink")
-		viper.Set("filesink.path", filepath.Join(t.TempDir(), "events.log"))
+		viper.Set("sinks", []map[string]interface{}{
+			{"type": "filesink", "path": filepath.Join(t.TempDir(), "events.log")},
+		})
 
 		got := ManufactureSinks()
 		require.Len(t, got, 1)
@@ -44,11 +45,11 @@ func TestManufactureSinks(t *testing.T) {
 		require.True(t, ok, "Expected FileSink")
 	})
 
-	t.Run("SinksList", func(t *testing.T) {
+	t.Run("MultipleEntriesSameType", func(t *testing.T) {
 		viper.Reset()
-		// "sinks" is a list of {type, ...settings}, each entry's settings
-		// inline rather than shared - this is what lets two entries name the
-		// same type with different settings, unlike "sink".
+		// Two entries of the same type, each with its own settings - the
+		// reason "sinks" is a list of {type, ...} rather than a top-level
+		// block per type: one block could never express this.
 		viper.Set("sinks", []map[string]interface{}{
 			{"type": "http", "url": "http://a"},
 			{"type": "http", "url": "http://b"},
@@ -67,22 +68,7 @@ func TestManufactureSinks(t *testing.T) {
 		require.True(t, ok, "Expected StdoutSink third")
 	})
 
-	t.Run("SinkAndSinksTogether", func(t *testing.T) {
-		viper.Reset()
-		viper.Set("sink", "stdout")
-		viper.Set("sinks", []map[string]interface{}{
-			{"type": "http", "url": "http://a"},
-		})
-
-		got := ManufactureSinks()
-		require.Len(t, got, 2)
-		_, ok := got[0].(*StdoutSink)
-		require.True(t, ok, "Expected StdoutSink from \"sink\" first")
-		_, ok = got[1].(*HTTPSink)
-		require.True(t, ok, "Expected HTTPSink from \"sinks\" second")
-	})
-
-	t.Run("SinksEntryMissingType", func(t *testing.T) {
+	t.Run("EntryMissingType", func(t *testing.T) {
 		viper.Reset()
 		viper.Set("sinks", []map[string]interface{}{
 			{"url": "http://a"},
@@ -93,9 +79,9 @@ func TestManufactureSinks(t *testing.T) {
 		})
 	})
 
-	t.Run("InvalidSink", func(t *testing.T) {
+	t.Run("InvalidType", func(t *testing.T) {
 		viper.Reset()
-		viper.Set("sink", "invalid")
+		viper.Set("sinks", []map[string]interface{}{{"type": "invalid"}})
 
 		defer func() {
 			if r := recover(); r != nil {
@@ -106,5 +92,9 @@ func TestManufactureSinks(t *testing.T) {
 		ManufactureSinks()
 	})
 
-	// Additional tests for each sink type can be added below
+	t.Run("NoSinksConfigured", func(t *testing.T) {
+		viper.Reset()
+		got := ManufactureSinks()
+		require.Empty(t, got)
+	})
 }

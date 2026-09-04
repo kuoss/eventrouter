@@ -29,43 +29,29 @@ type EventSinkInterface interface {
 	UpdateEvents(eNew *v1.Event, eOld *v1.Event)
 }
 
-// ManufactureSinks builds every configured sink. Two config keys feed it,
-// and both may be used together:
-//
-//   - "sink" names a single sink, reading its settings (if it has any) from
-//     the top-level block of the same name - e.g. "sink: http" reads the
-//     "http:" block. The simple form for the common case of one sink.
-//   - "sinks" is a list, each entry a "type" plus that sink's own settings
-//     inline, e.g. "- type: http, url: ...". Use this for more than one
-//     sink, including more than one of the same type (two different HTTP
-//     endpoints, say) - something "sink" has no way to express, since it
-//     only ever has one top-level block per type to read from.
-//
-// See config.example.yaml for both forms.
+// ManufactureSinks builds every sink named in the "sinks" config key: a
+// list, each entry a "type" plus that sink's own settings inline (e.g.
+// "- type: http, url: ..."). Settings are never shared between entries, so
+// the same type can appear more than once with different settings - two
+// different HTTP endpoints, say. See config.example.yaml.
 func ManufactureSinks() []EventSinkInterface {
-	var out []EventSinkInterface
-
-	if name := viper.GetString("sink"); name != "" {
-		out = append(out, manufactureSink(name, namedSettings(name)))
-	}
-
-	for _, entry := range sinkEntries() {
+	entries := sinkEntries()
+	out := make([]EventSinkInterface, 0, len(entries))
+	for _, entry := range entries {
 		name, _ := entry["type"].(string)
 		if name == "" {
 			panic(`sinks entry missing required "type"`)
 		}
 		out = append(out, manufactureSink(name, entrySettings(entry)))
 	}
-
 	return out
 }
 
 // sinkEntries reads the "sinks" list into the maps each entry decoded as.
-// Anything that isn't a list of maps (including "sinks" being unset) is
-// treated as no entries, rather than an error - the same "absent means none
-// of this" behavior "sink" gets from GetString returning "". YAML always
-// decodes a list of maps as []interface{} of map[string]interface{}; the
-// []map[string]interface{} case exists for viper.Set (as tests use).
+// Anything that isn't a list of maps is treated as no entries rather than an
+// error. YAML always decodes a list of maps as []interface{} of
+// map[string]interface{}; the []map[string]interface{} case exists for
+// viper.Set (as tests, and config's own default, use).
 func sinkEntries() []map[string]interface{} {
 	switch raw := viper.Get("sinks").(type) {
 	case []interface{}:
@@ -83,16 +69,6 @@ func sinkEntries() []map[string]interface{} {
 	}
 }
 
-// namedSettings returns settings scoped to the top-level block named name -
-// e.g. namedSettings("http") reads the "http:" block - or an empty (but
-// usable) *viper.Viper if there is no such block.
-func namedSettings(name string) *viper.Viper {
-	if s := viper.Sub(name); s != nil {
-		return s
-	}
-	return viper.New()
-}
-
 // entrySettings returns settings scoped to one "sinks" list entry, with
 // "type" excluded since it names the sink rather than configuring it.
 func entrySettings(entry map[string]interface{}) *viper.Viper {
@@ -106,8 +82,7 @@ func entrySettings(entry map[string]interface{}) *viper.Viper {
 }
 
 // manufactureSink builds the sink named name, reading its settings (if it
-// has any) from settings - the top-level block of the same name for "sink",
-// or one "sinks" list entry.
+// has any) from settings - one "sinks" list entry, with "type" excluded.
 func manufactureSink(name string, settings *viper.Viper) EventSinkInterface {
 	slog.Info("sink selected", "sink", name)
 	switch name {

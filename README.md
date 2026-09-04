@@ -50,28 +50,28 @@ copy [`config.example.yaml`][config-example] to `config.yaml` next to the
 binary and edit that. A malformed file (present but not valid YAML) still
 fails startup; a missing one does not.
 
-> **Upgrading from a `config.json` deployment:** versions before 0.7 read
+> **Upgrading from a `config.json` deployment:** versions before 0.6 read
 > `config.json`; this one reads `config.yaml` and does not fall back to the
 > old file. A ConfigMap still keyed `config.json` after upgrading produces no
-> error - every key silently reverts to its default (`sink: stdout` among
-> them) - so a deployment relying on a non-default sink needs its ConfigMap
-> key renamed to `config.yaml`, with the content converted to YAML (see
-> [`config.example.yaml`][config-example]), as part of the upgrade.
+> error - every key silently reverts to its default (a single `stdout` sink
+> among them) - so a deployment relying on a non-default sink needs its
+> ConfigMap key renamed to `config.yaml`, with the content converted to YAML
+> (see [`config.example.yaml`][config-example]), as part of the upgrade.
 
 | config key         | env var      | default    | values                                                                |
 | ------------------ | ------------ | ---------- | ---------------------------------------------------------------------|
 | `kubeconfig`        | `KUBECONFIG` | *(empty)*  | path to a kubeconfig file; empty uses the in-cluster service account |
-| `sink`              | -            | `stdout`   | `stdout`, `http`, `s3sink`, `influxdb`, `filesink`                   |
+| `sinks`             | -            | `[{type: stdout}]` | a list, each entry a `type` plus its own settings             |
 | `enable-prometheus` | -            | `true`     | exposes `/metrics` and the event counters                            |
 | `log.format`        | `LOG_FORMAT` | `json`     | `json`, `text`                                                       |
 | `log.level`         | `LOG_LEVEL`  | `info`     | `debug`, `info`, `warn`, `error`                                     |
 
-`sink` names a single sink, reading its settings (if it has any) from a
-nested block of the same name (e.g. `sink: http` reads the `http:` block) -
-see [`config.example.yaml`][config-example] for the full, commented list per
-sink. For more than one sink - including more than one of the same type,
-like two HTTP endpoints - use `sinks` instead (or alongside `sink`): a list,
-each entry a `type` plus that sink's own settings inline:
+Each `sinks` entry's `type` (`stdout`, `http`, `s3sink`, `influxdb`,
+`filesink`) picks what the rest of that entry configures - see
+[`config.example.yaml`][config-example] for the full, commented settings per
+type. Listing the same type more than once configures more than one
+instance of it, each with independent settings - two different HTTP
+endpoints, say, which one shared block could never express:
 ```yaml
 sinks:
   - type: http
@@ -79,6 +79,10 @@ sinks:
   - type: http
     url: "http://b"
 ```
+
+An explicit `sinks: []` means zero sinks - eventrouter still runs and counts
+events for `/metrics`, but forwards none of them anywhere, and says so in
+its own logs on startup rather than doing it silently.
 
 ## Event APIs
 

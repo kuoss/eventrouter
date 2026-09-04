@@ -85,9 +85,19 @@ type EventRouter struct {
 
 // NewEventRouter will create a new event router using the input params
 func NewEventRouter(kubeClient kubernetes.Interface, eventsInformer coreinformers.EventInformer) *EventRouter {
+	eSinks := sinks.ManufactureSinks()
+	if len(eSinks) == 0 {
+		// Not an error: an explicit "sinks: []" is a legitimate way to ask
+		// for no forwarding at all (Prometheus counters only, say), and we
+		// have no way to tell that apart from a mistake - but either way,
+		// silently dropping every event with no trace of it anywhere would
+		// be the wrong kind of quiet.
+		slog.Warn("no sinks configured - events will not be forwarded anywhere")
+	}
+
 	er := &EventRouter{
 		kubeClient: kubeClient,
-		eSinks:     sinks.ManufactureSinks(),
+		eSinks:     eSinks,
 	}
 	_, err := eventsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc:    er.addEvent,

@@ -76,4 +76,5 @@ metadata:
   namespace: kube-system
 data:
   config.yaml: |
-    sink: stdout
+    sinks:
+      - type: stdout

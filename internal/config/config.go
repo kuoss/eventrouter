@@ -54,7 +54,7 @@ func Load() (kubernetes.Interface, error) {
 		viper.SetConfigFile(forceCfg)
 	}
 	viper.SetDefault("kubeconfig", "")
-	viper.SetDefault("sink", "stdout")
+	viper.SetDefault("sinks", []map[string]interface{}{{"type": "stdout"}})
 	viper.SetDefault("enable-prometheus", true)
 	viper.SetDefault("log.format", "json")
 	viper.SetDefault("log.level", "info")
