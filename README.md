@@ -63,14 +63,16 @@ different schema (`regarding` for `involvedObject`, `note` for `message`,
 scheduler write to.
 
 Eventrouter watches `core/v1`, which sees **every** event in the cluster: the
-two groups are two views of the same stored objects and the API server converts
-between them. The conversion is not lossless, though - an event written through
-`events.k8s.io/v1` arrives over `core/v1` with an empty `source` and with no
-`firstTimestamp` or `lastTimestamp`. Eventrouter therefore falls back to
-`reportingComponent` for the component and to `eventTime` /
-`series.lastObservedTime` for the time, so events from either API carry a
-reporter and a real timestamp. Only the node stays unknown for
-`events.k8s.io/v1` events, which name no host at all.
+two groups are two views of the same stored objects and `core/v1.Event`
+already has room for both APIs' fields (see [`docs/event.md`][event-doc] for
+the field-by-field mapping and why watching one side is enough). A reporter
+only ever populates the fields its own API knows about, though - an event
+written through `events.k8s.io/v1` arrives with an empty `source` and no
+`firstTimestamp`/`lastTimestamp`, since that reporter never sets them.
+Eventrouter therefore falls back to `reportingComponent` for the component
+and to `eventTime`/`series.lastObservedTime` for the time, so events from
+either API carry a reporter and a real timestamp. Only the node stays
+unknown for `events.k8s.io/v1` events, which name no host at all.
 
 The Prometheus counters (`eventrouter_normal_total`,
 `eventrouter_warnings_total`, `eventrouter_info_total`,
@@ -104,5 +106,6 @@ $ kubectl set env deployment/eventrouter -n kube-system LOG_LEVEL=debug
 [kubernetes]: https://github.com/kubernetes/kubernetes/ "Kubernetes"
 [slog]: https://pkg.go.dev/log/slog "log/slog"
 [deploy-manifest]: deploy/deploy.yaml "deployment manifest"
+[event-doc]: docs/event.md "core/v1 vs events.k8s.io/v1"
 [config-example]: config.example.yaml "annotated config reference"
 [sample-log]: tests/sample/pod-log.ndjson "sample pod log"
