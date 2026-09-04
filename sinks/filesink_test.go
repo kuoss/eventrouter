@@ -12,7 +12,7 @@ import (
 )
 
 func TestFileSink_UpdateEvents(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "events.log")
+	path := filepath.Join(t.TempDir(), "event.log")
 	sink := NewFileSink(FileSinkConfig{Path: path})
 
 	sink.UpdateEvents(&v1.Event{Reason: "hello"}, nil)

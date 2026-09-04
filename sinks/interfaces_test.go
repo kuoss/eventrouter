@@ -36,7 +36,7 @@ func TestManufactureSinks(t *testing.T) {
 	t.Run("FileSink", func(t *testing.T) {
 		viper.Reset()
 		viper.Set("sinks", []map[string]interface{}{
-			{"type": "filesink", "path": filepath.Join(t.TempDir(), "events.log")},
+			{"type": "filesink", "path": filepath.Join(t.TempDir(), "event.log")},
 		})
 
 		got := ManufactureSinks()

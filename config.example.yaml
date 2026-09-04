@@ -48,7 +48,7 @@ sinks:
   #   concurrency: 1
 
   # - type: filesink # writes one JSON event per line to a local file, rotated
-  #   path: /var/log/eventrouter/events.log # required
+  #   path: /var/log/eventrouter/event.log # required
   #   maxSize: 100 # megabytes before rotating (0 defaults to 100)
   #   maxBackups: 100 # rotated files to keep (0 = unlimited)
   #   maxAge: 366 # days to keep rotated files (0 = unlimited)
